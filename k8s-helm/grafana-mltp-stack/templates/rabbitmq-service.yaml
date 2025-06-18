@@ -1,0 +1,29 @@
+{{- if .Values.infrastructure.rabbitmq.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: mythical-queue
+  namespace: {{ .Values.global.namespace | default .Release.Namespace }}
+  labels:
+    {{- include "grafana-mltp-stack.labels" . | nindent 4 }}
+    {{- include "grafana-mltp-stack.componentLabels" "rabbitmq" | nindent 4 }}
+spec:
+  type: {{ if and .Values.service.autoExpose.enabled .Values.service.autoExpose.services.rabbitmq.enabled }}{{ .Values.service.type }}{{ else }}ClusterIP{{ end }}
+  ports:
+    - port: {{ .Values.infrastructure.rabbitmq.ports.amqp }}
+      targetPort: amqp
+      protocol: TCP
+      name: amqp
+      {{- if and .Values.service.autoExpose.enabled .Values.service.autoExpose.services.rabbitmq.enabled (eq .Values.service.type "NodePort") }}
+      nodePort: {{ .Values.service.autoExpose.services.rabbitmq.nodePortAmqp }}
+      {{- end }}
+    - port: {{ .Values.infrastructure.rabbitmq.ports.management }}
+      targetPort: management
+      protocol: TCP
+      name: management
+      {{- if and .Values.service.autoExpose.enabled .Values.service.autoExpose.services.rabbitmq.enabled (eq .Values.service.type "NodePort") }}
+      nodePort: {{ .Values.service.autoExpose.services.rabbitmq.nodePort }}
+      {{- end }}
+  selector:
+    {{- include "grafana-mltp-stack.componentSelectorLabels" (list . "rabbitmq") | nindent 4 }}
+{{- end }}
