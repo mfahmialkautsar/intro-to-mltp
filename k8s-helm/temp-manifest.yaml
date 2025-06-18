@@ -1,0 +1,2152 @@
+---
+# Source: grafana-mltp-stack/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: grafana-mltp-stack
+  namespace: grafana-mltp
+  labels:
+    helm.sh/chart: grafana-mltp-stack-0.1.0
+    app.kubernetes.io/name: grafana-mltp-stack
+    app.kubernetes.io/instance: grafana-mltp-stack
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: grafana-mltp-stack
+automountServiceAccountToken: true
+---
+# Source: grafana-mltp-stack/templates/alloy-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-mltp-stack-alloy-config
+  namespace: grafana-mltp
+  labels:
+    helm.sh/chart: grafana-mltp-stack-0.1.0
+    app.kubernetes.io/name: grafana-mltp-stack
+    app.kubernetes.io/instance: grafana-mltp-stack
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: grafana-mltp-stack
+    app.kubernetes.io/component: alloy
+data:
+  config.alloy: |
+    // Telemetry Configuration
+    otelcol.receiver.otlp "mythical" {
+        grpc {
+            endpoint = "0.0.0.0:4317"
+        }
+        http {
+            endpoint = "0.0.0.0:4318"
+        }
+        output {
+            metrics = [otelcol.processor.batch.default.input]
+            logs    = [otelcol.processor.batch.default.input]
+            traces  = [otelcol.processor.batch.default.input]
+        }
+    }
+
+    otelcol.processor.batch "default" {
+        output {
+            metrics = [otelcol.exporter.prometheus.mimir.input]
+            logs    = [otelcol.exporter.loki.loki.input]
+            traces  = [otelcol.exporter.otlp.tempo.input]
+        }
+    }
+
+    // Metrics Export to Mimir
+    otelcol.exporter.prometheus "mimir" {
+        forward_to = [prometheus.remote_write.mimir.receiver]
+    }
+
+    prometheus.remote_write "mimir" {
+        endpoint {
+            url = "http://grafana-mltp-stack-mimir:9009/api/v1/push"
+        }
+    }
+
+    // Logs Export to Loki
+    otelcol.exporter.loki "loki" {
+        forward_to = [loki.write.loki.receiver]
+    }
+
+    loki.write "loki" {
+        endpoint {
+            url = "http://grafana-mltp-stack-loki:3100/loki/api/v1/push"
+        }
+    }
+
+    // Traces Export to Tempo
+    otelcol.exporter.otlp "tempo" {
+        client {
+            endpoint = "http://grafana-mltp-stack-tempo:4317"
+            tls {
+                insecure = true
+            }
+        }
+    }
+
+    // Scrape infrastructure metrics
+    prometheus.scrape "infrastructure" {
+        targets = [
+            {"__address__" = "grafana-mltp-stack-alloy:12345", group = "infrastructure", service = "alloy"},
+            {"__address__" = "grafana-mltp-stack-tempo:3200", group = "infrastructure", service = "tempo"},
+            {"__address__" = "grafana-mltp-stack-loki:3100", group = "infrastructure", service = "loki"},
+            {"__address__" = "grafana-mltp-stack-mimir:9009", group = "infrastructure", service = "mimir"},
+            {"__address__" = "grafana-mltp-stack-pyroscope:4040", group = "infrastructure", service = "pyroscope"},
+            {"__address__" = "grafana-mltp-stack-grafana:3000", group = "infrastructure", service = "grafana"},
+        ]
+        scrape_interval = "15s"
+        forward_to = [prometheus.remote_write.mimir.receiver]
+        job_name = "mltpg_infra"
+    }
+
+    // Scrape mythical application metrics
+    prometheus.scrape "mythical" {
+        targets = [
+            {"__address__" = "grafana-mltp-stack-mythical-server:4000", group = "mythical", service = "mythical-server"},
+            {"__address__" = "grafana-mltp-stack-mythical-requester:4001", group = "mythical", service = "mythical-requester"},
+            {"__address__" = "grafana-mltp-stack-mythical-recorder:4002", group = "mythical", service = "mythical-recorder"},
+        ]
+        scrape_interval = "2s"
+        scrape_timeout = "2s"
+        forward_to = [prometheus.remote_write.mimir.receiver]
+        job_name = "mythical"
+    }
+
+    // Pyroscope receiver for profiling data
+    pyroscope.receive_http "mythical" {
+        http {
+            listen_address = "0.0.0.0"
+            listen_port = "4040"
+        }
+        forward_to = [pyroscope.write.mythical.receiver]
+    }
+
+    pyroscope.write "mythical" {
+        endpoint {
+            url = "http://grafana-mltp-stack-pyroscope:4040"
+        }
+    }
+---
+# Source: grafana-mltp-stack/templates/alloy-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-mltp-stack-alloy-endpoints
+  namespace: grafana-mltp
+  labels:
+    helm.sh/chart: grafana-mltp-stack-0.1.0
+    app.kubernetes.io/name: grafana-mltp-stack
+    app.kubernetes.io/instance: grafana-mltp-stack
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: grafana-mltp-stack
+    app.kubernetes.io/component: alloy
+data:
+  endpoints.json: |
+    [
+      {
+        "name": "server",
+        "port": 4000,
+        "endpoints": ["unicorn", "manticore", "dragon"]
+      }
+    ]
+---
+# Source: grafana-mltp-stack/templates/beyla-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-mltp-stack-beyla-config
+  namespace: grafana-mltp
+  labels:
+    helm.sh/chart: grafana-mltp-stack-0.1.0
+    app.kubernetes.io/name: grafana-mltp-stack
+    app.kubernetes.io/instance: grafana-mltp-stack
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: grafana-mltp-stack
+    app.kubernetes.io/component: beyla
+data:
+  beyla-config.yml: |
+    # Enable Kubernetes metadata collection
+    attributes:
+      kubernetes:
+        enable: true
+        cluster_name: "local-k8s"
+    
+    # Automatic routes reporting
+    routes:
+      unmatched: heuristic
+    
+    # Service discovery configuration - use open ports method
+    discovery:
+      services:
+        - open_ports: "4000-4002"  # Monitor mythical services ports
+        - exe_path: "/usr/local/bin/node"  # Target Node.js processes
+    
+    # Metrics configuration
+    metrics:
+      interval: 5s
+      features: [application, application_span]
+    
+    # Traces configuration  
+    traces:
+      features: [application, application_span]
+    
+    # OTEL exporter configuration
+    otel_exporter_otlp:
+      endpoint: http://grafana-mltp-stack-alloy.grafana-mltp.svc.cluster.local:4317
+      insecure: true
+      timeout: 30s
+      
+    # Log level for debugging
+    log_level: info
+---
+# Source: grafana-mltp-stack/templates/grafana-dashboards-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-mltp-stack-grafana-dashboards-config
+  namespace: grafana-mltp
+  labels:
+    helm.sh/chart: grafana-mltp-stack-0.1.0
+    app.kubernetes.io/name: grafana-mltp-stack
+    app.kubernetes.io/instance: grafana-mltp-stack
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: grafana-mltp-stack
+    app.kubernetes.io/component: grafana
+data:
+  mlt.yaml: |
+    apiVersion: 1
+    providers:
+      - name: 'default'
+        orgId: 1
+        folder: 'MLTP Dashboards'
+        type: file
+        disableDeletion: false
+        updateIntervalSeconds: 10
+        allowUiUpdates: true
+        options:
+          path: /var/lib/grafana/dashboards
+---
+# Source: grafana-mltp-stack/templates/grafana-datasources-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-mltp-stack-grafana-datasources
+  namespace: grafana-mltp
+  labels:
+    helm.sh/chart: grafana-mltp-stack-0.1.0
+    app.kubernetes.io/name: grafana-mltp-stack
+    app.kubernetes.io/instance: grafana-mltp-stack
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: grafana-mltp-stack
+    app.kubernetes.io/component: grafana
+data:
+  datasources.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Mimir
+        type: prometheus
+        uid: mimir
+        access: proxy
+        url: http://grafana-mltp-stack-mimir:9009/prometheus
+        isDefault: true
+        editable: true
+        jsonData:
+          httpMethod: POST
+          timeInterval: 5s
+          defaultEditor: code
+          manageAlerts: true
+          alertmanagerUid: mimir
+          prometheusType: Mimir
+          prometheusVersion: 2.52.0
+          cacheLevel: 'High'
+          incrementalQuerying: true
+          incrementalQueryOverlapWindow: 10m
+          queryTimeout: 60s
+          defaultRegion: default
+
+      - name: Loki
+        type: loki
+        uid: loki
+        access: proxy
+        url: http://grafana-mltp-stack-loki:3100
+        editable: true
+        jsonData:
+          maxLines: 1000
+          derivedFields:
+            - name: "traceID"
+              matcherRegex: "traceID=(\\w+)"
+              url: "$${__value.raw}"
+              datasourceUid: tempo
+
+      - name: Tempo
+        type: tempo
+        uid: tempo
+        access: proxy
+        url: http://grafana-mltp-stack-tempo:3200
+        editable: true
+        jsonData:
+          httpMethod: GET
+          tracesToLogsV2:
+            datasourceUid: loki
+            spanStartTimeShift: -1h
+            spanEndTimeShift: 1h
+            tags:
+              - key: service.name
+                value: service_name
+            filterByTraceID: false
+            filterBySpanID: false
+            customQuery: true
+            query: 'method="$${__span.tags.method}"'
+          tracesToMetrics:
+            datasourceUid: mimir
+            spanStartTimeShift: -1h
+            spanEndTimeShift: 1h
+            tags:
+              - key: service.name
+                value: service_name
+            queries:
+              - name: Sample query
+                query: 'sum(rate(http_requests_total{$$__tags}[5m]))'
+          serviceMap:
+            datasourceUid: mimir
+          nodeGraph:
+            enabled: true
+          search:
+            hide: false
+
+      - name: Pyroscope
+        type: pyroscope
+        uid: pyroscope
+        access: proxy
+        url: http://grafana-mltp-stack-pyroscope:4040
+        editable: true
+        jsonData:
+          minStep: '15s'
+---
+# Source: grafana-mltp-stack/templates/loki-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-mltp-stack-loki-config
+  namespace: grafana-mltp
+  labels:
+    helm.sh/chart: grafana-mltp-stack-0.1.0
+    app.kubernetes.io/name: grafana-mltp-stack
+    app.kubernetes.io/instance: grafana-mltp-stack
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: grafana-mltp-stack
+    app.kubernetes.io/component: loki
+data:
+  loki.yaml: |
+    auth_enabled: false
+
+    server:
+      http_listen_port: 3100
+      grpc_listen_port: 9096
+      log_level: info
+
+    limits_config:
+      volume_enabled: true
+
+    common:
+      instance_addr: 127.0.0.1
+      path_prefix: /var/loki
+      storage:
+        filesystem:
+          chunks_directory: /var/loki/chunks
+          rules_directory: /var/loki/rules
+      replication_factor: 1
+      ring:
+        kvstore:
+          store: inmemory
+
+    query_range:
+      results_cache:
+        cache:
+          embedded_cache:
+            enabled: true
+            max_size_mb: 100
+
+    schema_config:
+      configs:
+        - from: 2020-10-24
+          store: tsdb
+          object_store: filesystem
+          schema: v13
+          index:
+            prefix: index_
+            period: 24h
+
+    ruler:
+      alertmanager_url: http://localhost:9093
+
+    # By default, Loki will send anonymous usage data to Grafana Labs
+    # Refer https://github.com/grafana/loki/blob/main/docs/sources/configure/_index.md#analytics
+    analytics:
+      reporting_enabled: false
+
+    pattern_ingester:
+      enabled: true
+---
+# Source: grafana-mltp-stack/templates/mimir-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-mltp-stack-mimir-config
+  namespace: grafana-mltp
+  labels:
+    helm.sh/chart: grafana-mltp-stack-0.1.0
+    app.kubernetes.io/name: grafana-mltp-stack
+    app.kubernetes.io/instance: grafana-mltp-stack
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: grafana-mltp-stack
+    app.kubernetes.io/component: mimir
+data:
+  mimir.yaml: |
+    # Disable multi-tenancy
+    multitenancy_enabled: false
+
+    # The server block configures the Mimir server.
+    server:
+      # Listen on port 9009 for all incoming requests.
+      http_listen_port: 9009
+      # Log messages at info level.
+      log_level: info
+
+    # The block storage configuration determines where the metrics TSDB data is stored.
+    blocks_storage:
+      # Use the local filesystem for block storage.
+      backend: filesystem
+      # Directory in which to store synchronised TSDB index headers.
+      bucket_store:
+        sync_dir: /var/mimir/tsdb-sync
+      # Directory in which to store configuration for object storage.
+      filesystem:
+        dir: /var/mimir/data/tsdb
+      # Direction in which to store TSDB WAL data.
+      tsdb:
+        dir: /var/mimir/tsdb
+
+    # The compactor block configures the compactor responsible for compacting TSDB blocks.
+    compactor:
+      # Directory to temporarily store blocks underdoing compaction.
+      data_dir: /var/mimir/compactor
+      # The sharding ring type used to share the hashed ring for the compactor.
+      sharding_ring:
+        # Use memberlist backend store (the default).
+        kvstore:
+          store: memberlist
+
+    # The distributor receives incoming metrics data for the system.
+    distributor:
+      # The ring to share hash ring data across instances.
+      ring:
+        # The address advertised in the ring. Localhost.
+        instance_addr: 127.0.0.1
+        # Use memberlist backend store (the default).
+        kvstore:
+          store: memberlist
+
+    # The ingester receives data from the distributor and processes it into indices and blocks.
+    ingester:
+      # The ring to share hash ring data across instances.
+      ring:
+        # The address advertised in the ring. Localhost.
+        instance_addr: 127.0.0.1
+        # Use memberlist backend store (the default).
+        kvstore:
+          store: memberlist
+        # Only run one instance of the ingesters.
+        replication_factor: 1
+
+    # The ruler storage block configures ruler storage settings.
+    ruler_storage:
+      # Use the local filesystem for block storage.
+      backend: filesystem
+      filesystem:
+        # The directory in which to store rules.
+        dir: /var/mimir/rules
+
+    # The store gateway block configures gateway storage.
+    store_gateway:
+      # Configuration for the hash ring.
+      sharding_ring:
+        # Only run a single instance.
+        replication_factor: 1
+
+    # Global limits configuration.
+    limits:
+      # A maximum of 100000 exemplars in memory at any one time.
+      max_global_exemplars_per_user: 100000
+      ingestion_rate: 30000
+---
+# Source: grafana-mltp-stack/templates/tempo-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-mltp-stack-tempo-config
+  namespace: grafana-mltp
+  labels:
+    helm.sh/chart: grafana-mltp-stack-0.1.0
+    app.kubernetes.io/name: grafana-mltp-stack
+    app.kubernetes.io/instance: grafana-mltp-stack
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: grafana-mltp-stack
+    app.kubernetes.io/component: tempo
+data:
+  tempo.yaml: |
+    # Enables result streaming from Tempo (to Grafana) via HTTP.
+    stream_over_http_enabled: true
+
+    # Configure the server block.
+    server:
+      # Listen for all incoming requests on port 3200.
+      http_listen_port: 3200
+
+    # The distributor receives incoming trace span data for the system.
+    distributor:
+      receivers:
+        jaeger:
+          protocols:
+            thrift_http:
+            grpc:
+            thrift_binary:
+            thrift_compact:
+        otlp:
+          protocols:
+            http:
+              endpoint: "0.0.0.0:4318"
+            grpc:
+              endpoint: "0.0.0.0:4317"
+        zipkin:
+
+    # The ingester receives data from the distributor and processes it into indices and blocks.
+    ingester:
+      trace_idle_period: 10s
+      max_block_bytes: 1_000_000
+      max_block_duration: 5m
+
+    # The compactor block configures the compactor responsible for compacting TSDB blocks.
+    compactor:
+      compaction:
+        compaction_window: 1h
+        max_block_bytes: 100_000_000
+        block_retention: 1h
+        compacted_block_retention: 10m
+
+    # Configuration block to determine where to store TSDB blocks.
+    storage:
+      trace:
+        backend: local
+        block:
+          bloom_filter_false_positive: .05
+        wal:
+          path: /var/tempo/wal
+        local:
+          path: /var/tempo/blocks
+        pool:
+          max_workers: 100
+          queue_depth: 10000
+
+    # Configures the metrics generator component of Tempo.
+    metrics_generator:
+      processor:
+        span_metrics:
+          dimensions:
+            - http.method
+            - http.target
+            - http.status_code
+            - service.version
+        service_graphs:
+          dimensions:
+            - http.method
+            - http.target
+            - http.status_code
+            - service.version
+        local_blocks:
+          flush_to_storage: true
+      registry:
+        collection_interval: 5s
+        external_labels:
+          source: tempo
+          group: 'mythical'
+      storage:
+        path: /var/tempo/generator/wal
+        remote_write:
+          - url: http://grafana-mltp-stack-mimir:9009/api/v1/push
+            send_exemplars: true
+      traces_storage:
+        path: /var/tempo/generator/traces
+
+    # Global override configuration.
+    overrides:
+      defaults:
+        metrics_generator:
+          processors: [service-graphs, span-metrics, local-blocks]
+          generate_native_histograms: both
+---
+# Source: grafana-mltp-stack/templates/grafana-pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: grafana-mltp-stack-grafana-pvc
+  namespace: grafana-mltp
+  labels:
+    helm.sh/chart: grafana-mltp-stack-0.1.0
+    app.kubernetes.io/name: grafana-mltp-stack
+    app.kubernetes.io/instance: grafana-mltp-stack
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: grafana-mltp-stack
+    app.kubernetes.io/component: grafana
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 4Gi
+---
+# Source: grafana-mltp-stack/templates/postgresql-pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: grafana-mltp-stack-postgresql-pvc
+  namespace: grafana-mltp
+  labels:
+    helm.sh/chart: grafana-mltp-stack-0.1.0
+    app.kubernetes.io/name: grafana-mltp-stack
+    app.kubernetes.io/instance: grafana-mltp-stack
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: grafana-mltp-stack
+    app.kubernetes.io/component: postgresql
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 8Gi
+---
+# Source: grafana-mltp-stack/templates/alloy-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana-mltp-stack-alloy
+  namespace: grafana-mltp
+  labels:
+    helm.sh/chart: grafana-mltp-stack-0.1.0
+    app.kubernetes.io/name: grafana-mltp-stack
+    app.kubernetes.io/instance: grafana-mltp-stack
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: grafana-mltp-stack
+    app.kubernetes.io/component: alloy
+spec:
+  type: NodePort
+  ports:
+    - port: 12345
+      targetPort: http
+      protocol: TCP
+      name: http
+      nodePort: 30345
+    - port: 12348
+      targetPort: alt
+      protocol: TCP
+      name: alt
+    - port: 6832
+      targetPort: jaeger
+      protocol: TCP
+      name: jaeger
+    - port: 55679
+      targetPort: zipkin
+      protocol: TCP
+      name: zipkin
+    - port: 4317
+      targetPort: otlp-grpc
+      protocol: TCP
+      name: otlp-grpc
+    - port: 4318
+      targetPort: otlp-http
+      protocol: TCP
+      name: otlp-http
+  selector:
+    app.kubernetes.io/name: grafana-mltp-stack
+    app.kubernetes.io/instance: grafana-mltp-stack
+    app.kubernetes.io/component: alloy
+---
+# Source: grafana-mltp-stack/templates/grafana-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana-mltp-stack-grafana
+  namespace: grafana-mltp
+  labels:
+    helm.sh/chart: grafana-mltp-stack-0.1.0
+    app.kubernetes.io/name: grafana-mltp-stack
+    app.kubernetes.io/instance: grafana-mltp-stack
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: grafana-mltp-stack
+    app.kubernetes.io/component: grafana
+spec:
+  type: NodePort
+  ports:
+    - port: 3000
+      targetPort: http
+      protocol: TCP
+      name: http
+      nodePort: 30000
+  selector:
+    app.kubernetes.io/name: grafana-mltp-stack
+    app.kubernetes.io/instance: grafana-mltp-stack
+    app.kubernetes.io/component: grafana
+---
+# Source: grafana-mltp-stack/templates/loki-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana-mltp-stack-loki
+  namespace: grafana-mltp
+  labels:
+    helm.sh/chart: grafana-mltp-stack-0.1.0
+    app.kubernetes.io/name: grafana-mltp-stack
+    app.kubernetes.io/instance: grafana-mltp-stack
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: grafana-mltp-stack
+    app.kubernetes.io/component: loki
+spec:
+  type: NodePort
+  ports:
+    - port: 3100
+      targetPort: http
+      protocol: TCP
+      name: http
+      nodePort: 30100
+  selector:
+    app.kubernetes.io/name: grafana-mltp-stack
+    app.kubernetes.io/instance: grafana-mltp-stack
+    app.kubernetes.io/component: loki
+---
+# Source: grafana-mltp-stack/templates/mimir-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana-mltp-stack-mimir
+  namespace: grafana-mltp
+  labels:
+    helm.sh/chart: grafana-mltp-stack-0.1.0
+    app.kubernetes.io/name: grafana-mltp-stack
+    app.kubernetes.io/instance: grafana-mltp-stack
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: grafana-mltp-stack
+    app.kubernetes.io/component: mimir
+spec:
+  type: NodePort
+  ports:
+    - port: 9009
+      targetPort: http
+      protocol: TCP
+      name: http
+      nodePort: 30200
+  selector:
+    app.kubernetes.io/name: grafana-mltp-stack
+    app.kubernetes.io/instance: grafana-mltp-stack
+    app.kubernetes.io/component: mimir
+---
+# Source: grafana-mltp-stack/templates/mythical-recorder-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana-mltp-stack-mythical-recorder
+  namespace: grafana-mltp
+  labels:
+    helm.sh/chart: grafana-mltp-stack-0.1.0
+    app.kubernetes.io/name: grafana-mltp-stack
+    app.kubernetes.io/instance: grafana-mltp-stack
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: grafana-mltp-stack
+    app.kubernetes.io/component: mythical-recorder
+spec:
+  type: NodePort
+  ports:
+    - port: 4002
+      targetPort: http
+      protocol: TCP
+      name: http
+      nodePort: 30003
+  selector:
+    app.kubernetes.io/name: grafana-mltp-stack
+    app.kubernetes.io/instance: grafana-mltp-stack
+    app.kubernetes.io/component: mythical-recorder
+---
+# Source: grafana-mltp-stack/templates/mythical-requester-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana-mltp-stack-mythical-requester
+  namespace: grafana-mltp
+  labels:
+    helm.sh/chart: grafana-mltp-stack-0.1.0
+    app.kubernetes.io/name: grafana-mltp-stack
+    app.kubernetes.io/instance: grafana-mltp-stack
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: grafana-mltp-stack
+    app.kubernetes.io/component: mythical-requester
+spec:
+  type: NodePort
+  ports:
+    - port: 4001
+      targetPort: http
+      protocol: TCP
+      name: http
+      nodePort: 30002
+  selector:
+    app.kubernetes.io/name: grafana-mltp-stack
+    app.kubernetes.io/instance: grafana-mltp-stack
+    app.kubernetes.io/component: mythical-requester
+---
+# Source: grafana-mltp-stack/templates/mythical-server-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana-mltp-stack-mythical-server
+  namespace: grafana-mltp
+  labels:
+    helm.sh/chart: grafana-mltp-stack-0.1.0
+    app.kubernetes.io/name: grafana-mltp-stack
+    app.kubernetes.io/instance: grafana-mltp-stack
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: grafana-mltp-stack
+    app.kubernetes.io/component: mythical-server
+spec:
+  type: NodePort
+  ports:
+    - port: 4000
+      targetPort: http
+      protocol: TCP
+      name: http
+      nodePort: 30001
+    - port: 80
+      targetPort: alt
+      protocol: TCP
+      name: alt
+  selector:
+    app.kubernetes.io/name: grafana-mltp-stack
+    app.kubernetes.io/instance: grafana-mltp-stack
+    app.kubernetes.io/component: mythical-server
+---
+# Source: grafana-mltp-stack/templates/postgresql-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana-mltp-stack-postgresql
+  namespace: grafana-mltp
+  labels:
+    helm.sh/chart: grafana-mltp-stack-0.1.0
+    app.kubernetes.io/name: grafana-mltp-stack
+    app.kubernetes.io/instance: grafana-mltp-stack
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: grafana-mltp-stack
+    app.kubernetes.io/component: postgresql
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5432
+      targetPort: postgres
+      protocol: TCP
+      name: postgres
+  selector:
+    app.kubernetes.io/name: grafana-mltp-stack
+    app.kubernetes.io/instance: grafana-mltp-stack
+    app.kubernetes.io/component: postgresql
+---
+# Source: grafana-mltp-stack/templates/pyroscope-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana-mltp-stack-pyroscope
+  namespace: grafana-mltp
+  labels:
+    helm.sh/chart: grafana-mltp-stack-0.1.0
+    app.kubernetes.io/name: grafana-mltp-stack
+    app.kubernetes.io/instance: grafana-mltp-stack
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: grafana-mltp-stack
+    app.kubernetes.io/component: pyroscope
+spec:
+  type: NodePort
+  ports:
+    - port: 4040
+      targetPort: http
+      protocol: TCP
+      name: http
+      nodePort: 30400
+  selector:
+    app.kubernetes.io/name: grafana-mltp-stack
+    app.kubernetes.io/instance: grafana-mltp-stack
+    app.kubernetes.io/component: pyroscope
+---
+# Source: grafana-mltp-stack/templates/rabbitmq-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: mythical-queue
+  namespace: grafana-mltp
+  labels:
+    helm.sh/chart: grafana-mltp-stack-0.1.0
+    app.kubernetes.io/name: grafana-mltp-stack
+    app.kubernetes.io/instance: grafana-mltp-stack
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: grafana-mltp-stack
+    app.kubernetes.io/component: rabbitmq
+spec:
+  type: NodePort
+  ports:
+    - port: 5672
+      targetPort: amqp
+      protocol: TCP
+      name: amqp
+      nodePort: 30501
+    - port: 15672
+      targetPort: management
+      protocol: TCP
+      name: management
+      nodePort: 30500
+  selector:
+    app.kubernetes.io/name: grafana-mltp-stack
+    app.kubernetes.io/instance: grafana-mltp-stack
+    app.kubernetes.io/component: rabbitmq
+---
+# Source: grafana-mltp-stack/templates/tempo-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana-mltp-stack-tempo
+  namespace: grafana-mltp
+  labels:
+    helm.sh/chart: grafana-mltp-stack-0.1.0
+    app.kubernetes.io/name: grafana-mltp-stack
+    app.kubernetes.io/instance: grafana-mltp-stack
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: grafana-mltp-stack
+    app.kubernetes.io/component: tempo
+spec:
+  type: NodePort
+  ports:
+    - port: 3200
+      targetPort: http
+      protocol: TCP
+      name: http
+      nodePort: 30300
+    - port: 9411
+      targetPort: zipkin
+      protocol: TCP
+      name: zipkin
+    - port: 4317
+      targetPort: otlp-grpc
+      protocol: TCP
+      name: otlp-grpc
+    - port: 4318
+      targetPort: otlp-http
+      protocol: TCP
+      name: otlp-http
+    - port: 14250
+      targetPort: jaeger
+      protocol: TCP
+      name: jaeger
+  selector:
+    app.kubernetes.io/name: grafana-mltp-stack
+    app.kubernetes.io/instance: grafana-mltp-stack
+    app.kubernetes.io/component: tempo
+---
+# Source: grafana-mltp-stack/templates/beyla-daemonset.yaml
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: grafana-mltp-stack-beyla
+  namespace: grafana-mltp
+  labels:
+    helm.sh/chart: grafana-mltp-stack-0.1.0
+    app.kubernetes.io/name: grafana-mltp-stack
+    app.kubernetes.io/instance: grafana-mltp-stack
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: grafana-mltp-stack
+    app.kubernetes.io/component: beyla
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: grafana-mltp-stack
+      app.kubernetes.io/instance: grafana-mltp-stack
+      app.kubernetes.io/component: beyla
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: grafana-mltp-stack-0.1.0
+        app.kubernetes.io/name: grafana-mltp-stack
+        app.kubernetes.io/instance: grafana-mltp-stack
+        app.kubernetes.io/version: "1.0.0"
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/part-of: grafana-mltp-stack
+        app.kubernetes.io/component: beyla
+    spec:
+      serviceAccountName: grafana-mltp-stack
+      hostPID: true  # Required for eBPF instrumentation
+      
+      securityContext:
+        fsGroup: 0
+      containers:
+        - name: beyla
+          image: "grafana/beyla:2.1.0"
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            privileged: true  # Required for eBPF
+            readOnlyRootFilesystem: true
+          env:
+            - name: BEYLA_CONFIG_PATH
+              value: "/config/beyla-config.yml"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://grafana-mltp-stack-alloy.grafana-mltp.svc.cluster.local:4317"
+            - name: OTEL_EXPORTER_OTLP_INSECURE
+              value: "true"
+          resources:
+            limits:
+              cpu: 200m
+              memory: 256Mi
+            requests:
+              cpu: 50m
+              memory: 128Mi
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: var-run-beyla
+              mountPath: /var/run/beyla
+      volumes:
+        - name: config
+          configMap:
+            name: grafana-mltp-stack-beyla-config
+        - name: var-run-beyla
+          emptyDir: {}
+---
+# Source: grafana-mltp-stack/templates/alloy-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana-mltp-stack-alloy
+  namespace: grafana-mltp
+  labels:
+    helm.sh/chart: grafana-mltp-stack-0.1.0
+    app.kubernetes.io/name: grafana-mltp-stack
+    app.kubernetes.io/instance: grafana-mltp-stack
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: grafana-mltp-stack
+    app.kubernetes.io/component: alloy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: grafana-mltp-stack
+      app.kubernetes.io/instance: grafana-mltp-stack
+      app.kubernetes.io/component: alloy
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: grafana-mltp-stack-0.1.0
+        app.kubernetes.io/name: grafana-mltp-stack
+        app.kubernetes.io/instance: grafana-mltp-stack
+        app.kubernetes.io/version: "1.0.0"
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/part-of: grafana-mltp-stack
+        app.kubernetes.io/component: alloy
+    spec:
+      
+      serviceAccountName: grafana-mltp-stack
+      
+      securityContext:
+        fsGroup: 0
+      containers:
+        - name: alloy
+          
+          securityContext:
+            runAsNonRoot: false
+            runAsUser: 0
+          image: "grafana/alloy:v1.8.1"
+          imagePullPolicy: IfNotPresent
+          args:
+            - run
+            - --server.http.listen-addr=0.0.0.0:12345
+            - --stability.level=public-preview
+            - /etc/alloy/config.alloy
+          ports:
+            - name: http
+              containerPort: 12345
+              protocol: TCP
+            - name: alt
+              containerPort: 12348
+              protocol: TCP
+            - name: jaeger
+              containerPort: 6832
+              protocol: TCP
+            - name: zipkin
+              containerPort: 55679
+              protocol: TCP
+            - name: otlp-grpc
+              containerPort: 4317
+              protocol: TCP
+            - name: otlp-http
+              containerPort: 4318
+              protocol: TCP
+          volumeMounts:
+            - name: config
+              mountPath: /etc/alloy
+          livenessProbe:
+            httpGet:
+              path: /-/healthy
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+          resources:
+            limits:
+              cpu: 500m
+              memory: 512Mi
+            requests:
+              cpu: 100m
+              memory: 256Mi
+      volumes:
+        - name: config
+          configMap:
+            name: grafana-mltp-stack-alloy-config
+---
+# Source: grafana-mltp-stack/templates/grafana-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana-mltp-stack-grafana
+  namespace: grafana-mltp
+  labels:
+    helm.sh/chart: grafana-mltp-stack-0.1.0
+    app.kubernetes.io/name: grafana-mltp-stack
+    app.kubernetes.io/instance: grafana-mltp-stack
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: grafana-mltp-stack
+    app.kubernetes.io/component: grafana
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: grafana-mltp-stack
+      app.kubernetes.io/instance: grafana-mltp-stack
+      app.kubernetes.io/component: grafana
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: grafana-mltp-stack-0.1.0
+        app.kubernetes.io/name: grafana-mltp-stack
+        app.kubernetes.io/instance: grafana-mltp-stack
+        app.kubernetes.io/version: "1.0.0"
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/part-of: grafana-mltp-stack
+        app.kubernetes.io/component: grafana
+    spec:
+      
+      serviceAccountName: grafana-mltp-stack
+      
+      securityContext:
+        fsGroup: 0
+      containers:
+        - name: grafana
+          
+          securityContext:
+            runAsNonRoot: false
+            runAsUser: 0
+          image: "grafana/grafana:11.6.0"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          env:
+            - name: GF_FEATURE_TOGGLES_ENABLE
+              value: "flameGraph traceqlSearch traceQLStreaming correlations metricsSummary traceqlEditor traceToMetrics traceToProfiles datatrails"
+            - name: GF_INSTALL_PLUGINS
+              value: "grafana-lokiexplore-app,grafana-exploretraces-app,grafana-pyroscope-app"
+            - name: GF_AUTH_ANONYMOUS_ENABLED
+              value: "true"
+            - name: GF_AUTH_ANONYMOUS_ORG_ROLE
+              value: "Admin"
+            - name: GF_AUTH_DISABLE_LOGIN_FORM
+              value: "true"
+          volumeMounts:
+            - name: grafana-storage
+              mountPath: /var/lib/grafana
+            - name: datasources
+              mountPath: /etc/grafana/provisioning/datasources
+            - name: dashboards-config
+              mountPath: /etc/grafana/provisioning/dashboards
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+          resources:
+            limits:
+              cpu: 500m
+              memory: 512Mi
+            requests:
+              cpu: 100m
+              memory: 256Mi
+      volumes:
+        - name: grafana-storage
+          persistentVolumeClaim:
+            claimName: grafana-mltp-stack-grafana-pvc
+        - name: datasources
+          configMap:
+            name: grafana-mltp-stack-grafana-datasources
+        - name: dashboards-config
+          configMap:
+            name: grafana-mltp-stack-grafana-dashboards-config
+---
+# Source: grafana-mltp-stack/templates/loki-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana-mltp-stack-loki
+  namespace: grafana-mltp
+  labels:
+    helm.sh/chart: grafana-mltp-stack-0.1.0
+    app.kubernetes.io/name: grafana-mltp-stack
+    app.kubernetes.io/instance: grafana-mltp-stack
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: grafana-mltp-stack
+    app.kubernetes.io/component: loki
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: grafana-mltp-stack
+      app.kubernetes.io/instance: grafana-mltp-stack
+      app.kubernetes.io/component: loki
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: grafana-mltp-stack-0.1.0
+        app.kubernetes.io/name: grafana-mltp-stack
+        app.kubernetes.io/instance: grafana-mltp-stack
+        app.kubernetes.io/version: "1.0.0"
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/part-of: grafana-mltp-stack
+        app.kubernetes.io/component: loki
+    spec:
+      
+      serviceAccountName: grafana-mltp-stack
+      
+      securityContext:
+        fsGroup: 0
+      containers:
+        - name: loki
+          
+          securityContext:
+            runAsNonRoot: false
+            runAsUser: 0
+          image: "grafana/loki:3.4.3"
+          imagePullPolicy: IfNotPresent
+          args:
+            - --pattern-ingester.enabled=true
+            - -config.file=/etc/loki/loki.yaml
+          ports:
+            - name: http
+              containerPort: 3100
+              protocol: TCP
+          volumeMounts:
+            - name: config
+              mountPath: /etc/loki/loki.yaml
+              subPath: loki.yaml
+            - name: loki-data
+              mountPath: /var/loki
+          livenessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+          resources:
+            limits:
+              cpu: 500m
+              memory: 512Mi
+            requests:
+              cpu: 100m
+              memory: 256Mi
+      volumes:
+        - name: config
+          configMap:
+            name: grafana-mltp-stack-loki-config
+        - name: loki-data
+          emptyDir: {}
+---
+# Source: grafana-mltp-stack/templates/mimir-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana-mltp-stack-mimir
+  namespace: grafana-mltp
+  labels:
+    helm.sh/chart: grafana-mltp-stack-0.1.0
+    app.kubernetes.io/name: grafana-mltp-stack
+    app.kubernetes.io/instance: grafana-mltp-stack
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: grafana-mltp-stack
+    app.kubernetes.io/component: mimir
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: grafana-mltp-stack
+      app.kubernetes.io/instance: grafana-mltp-stack
+      app.kubernetes.io/component: mimir
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: grafana-mltp-stack-0.1.0
+        app.kubernetes.io/name: grafana-mltp-stack
+        app.kubernetes.io/instance: grafana-mltp-stack
+        app.kubernetes.io/version: "1.0.0"
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/part-of: grafana-mltp-stack
+        app.kubernetes.io/component: mimir
+    spec:
+      
+      serviceAccountName: grafana-mltp-stack
+      
+      securityContext:
+        fsGroup: 0
+      containers:
+        - name: mimir
+          
+          securityContext:
+            runAsNonRoot: false
+            runAsUser: 0
+          image: "grafana/mimir:2.16.0"
+          imagePullPolicy: IfNotPresent
+          args:
+            - -ingester.native-histograms-ingestion-enabled=true
+            - -config.file=/etc/mimir.yaml
+          ports:
+            - name: http
+              containerPort: 9009
+              protocol: TCP
+          volumeMounts:
+            - name: config
+              mountPath: /etc/mimir.yaml
+              subPath: mimir.yaml
+            - name: mimir-data
+              mountPath: /var/mimir
+          livenessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 45
+            periodSeconds: 30
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+          resources:
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+            requests:
+              cpu: 200m
+              memory: 512Mi
+      volumes:
+        - name: config
+          configMap:
+            name: grafana-mltp-stack-mimir-config
+        - name: mimir-data
+          emptyDir: {}
+---
+# Source: grafana-mltp-stack/templates/mythical-recorder-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana-mltp-stack-mythical-recorder
+  namespace: grafana-mltp
+  labels:
+    helm.sh/chart: grafana-mltp-stack-0.1.0
+    app.kubernetes.io/name: grafana-mltp-stack
+    app.kubernetes.io/instance: grafana-mltp-stack
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: grafana-mltp-stack
+    app.kubernetes.io/component: mythical-recorder
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: grafana-mltp-stack
+      app.kubernetes.io/instance: grafana-mltp-stack
+      app.kubernetes.io/component: mythical-recorder
+  template:
+    metadata:
+      annotations:
+        checksum/config: 61958515d1bdbadf285fbc9ec8b1cb93dacf8a2b71abdad084a05f11499f2a2e
+      labels:
+        app.kubernetes.io/name: grafana-mltp-stack
+        app.kubernetes.io/instance: grafana-mltp-stack
+        app.kubernetes.io/component: mythical-recorder
+    spec:
+      serviceAccountName: grafana-mltp-stack
+      
+      securityContext:
+        fsGroup: 0
+      initContainers:
+        - name: wait-for-postgresql
+          image: busybox:1.35
+          command: ['sh', '-c']
+          args:
+            - |
+              until nc -z grafana-mltp-stack-postgresql.grafana-mltp.svc.cluster.local 5432; do
+                echo "Waiting for PostgreSQL to be ready..."
+                sleep 2
+              done
+              echo "PostgreSQL is ready!"
+        - name: wait-for-rabbitmq
+          image: busybox:1.35
+          command: ['sh', '-c']
+          args:
+            - |
+              until nc -z mythical-queue.grafana-mltp.svc.cluster.local 5672; do
+                echo "Waiting for RabbitMQ to be ready..."
+                sleep 2
+              done
+              echo "RabbitMQ is ready!"
+      containers:
+        - name: mythical-recorder
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 1000
+          image: "grafana/intro-to-mltp:mythical-beasts-recorder-latest"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 4002
+              protocol: TCP
+          env:
+            - name: NAMESPACE
+              value: "production"
+            - name: LOGS_TARGET
+              value: "http://grafana-mltp-stack-loki:3100/loki/api/v1/push"
+            - name: TRACING_COLLECTOR_HOST
+              value: grafana-mltp-stack-alloy.grafana-mltp.svc.cluster.local
+            - name: TRACING_COLLECTOR_PORT
+              value: "4317"
+            - name: PROFILE_COLLECTOR_HOST
+              value: grafana-mltp-stack-alloy.grafana-mltp.svc.cluster.local
+            - name: PROFILE_COLLECTOR_PORT
+              value: "4040"
+            - name: OTEL_EXPORTER_OTLP_TRACES_INSECURE
+              value: "true"
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: "ip=1.2.3.5"
+            - name: POSTGRES_HOST
+              value: grafana-mltp-stack-postgresql.grafana-mltp.svc.cluster.local
+            - name: POSTGRES_PORT
+              value: "5432"
+            - name: POSTGRES_DB
+              value: "mythical"
+            - name: POSTGRES_USER
+              value: "postgres"
+            - name: POSTGRES_PASSWORD
+              value: "mythical"
+            - name: RABBITMQ_HOST
+              value: mythical-queue.grafana-mltp.svc.cluster.local
+            - name: RABBITMQ_PORT
+              value: "5672"
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            limits:
+              cpu: 200m
+              memory: 256Mi
+            requests:
+              cpu: 50m
+              memory: 128Mi
+---
+# Source: grafana-mltp-stack/templates/mythical-requester-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana-mltp-stack-mythical-requester
+  namespace: grafana-mltp
+  labels:
+    helm.sh/chart: grafana-mltp-stack-0.1.0
+    app.kubernetes.io/name: grafana-mltp-stack
+    app.kubernetes.io/instance: grafana-mltp-stack
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: grafana-mltp-stack
+    app.kubernetes.io/component: mythical-requester
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: grafana-mltp-stack
+      app.kubernetes.io/instance: grafana-mltp-stack
+      app.kubernetes.io/component: mythical-requester
+  template:
+    metadata:
+      annotations:
+        checksum/config: 61958515d1bdbadf285fbc9ec8b1cb93dacf8a2b71abdad084a05f11499f2a2e
+      labels:
+        app.kubernetes.io/name: grafana-mltp-stack
+        app.kubernetes.io/instance: grafana-mltp-stack
+        app.kubernetes.io/component: mythical-requester
+    spec:
+      serviceAccountName: grafana-mltp-stack
+      
+      securityContext:
+        fsGroup: 0
+      initContainers:
+        - name: wait-for-server
+          image: busybox:1.35
+          command: ['sh', '-c']
+          args:
+            - |
+              until nslookup grafana-mltp-stack-mythical-server.grafana-mltp.svc.cluster.local; do
+                echo "Waiting for mythical-server to be ready..."
+                sleep 2
+              done
+              echo "Mythical server is ready!"
+        - name: wait-for-rabbitmq
+          image: busybox:1.35
+          command: ['sh', '-c']
+          args:
+            - |
+              until nc -z mythical-queue.grafana-mltp.svc.cluster.local 5672; do
+                echo "Waiting for RabbitMQ to be ready..."
+                sleep 2
+              done
+              echo "RabbitMQ is ready!"
+      containers:
+        - name: mythical-requester
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 1000
+          image: "grafana/intro-to-mltp:mythical-beasts-requester-latest"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 4001
+              protocol: TCP
+          env:
+            - name: NAMESPACE
+              value: "production"
+            - name: LOGS_TARGET
+              value: "http://grafana-mltp-stack-loki:3100/loki/api/v1/push"
+            - name: TRACING_COLLECTOR_HOST
+              value: grafana-mltp-stack-alloy.grafana-mltp.svc.cluster.local
+            - name: TRACING_COLLECTOR_PORT
+              value: "4317"
+            - name: PROFILE_COLLECTOR_HOST
+              value: grafana-mltp-stack-alloy.grafana-mltp.svc.cluster.local
+            - name: PROFILE_COLLECTOR_PORT
+              value: "4040"
+            - name: OTEL_EXPORTER_OTLP_TRACES_INSECURE
+              value: "true"
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: "ip=1.2.3.4"
+            - name: MYTHICAL_BEASTS_SERVER
+              value: "http://grafana-mltp-stack-mythical-server.grafana-mltp.svc.cluster.local:4000"
+            - name: RABBITMQ_HOST
+              value: mythical-queue.grafana-mltp.svc.cluster.local
+            - name: RABBITMQ_PORT
+              value: "5672"
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            limits:
+              cpu: 200m
+              memory: 256Mi
+            requests:
+              cpu: 50m
+              memory: 128Mi
+---
+# Source: grafana-mltp-stack/templates/mythical-server-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana-mltp-stack-mythical-server
+  namespace: grafana-mltp
+  labels:
+    helm.sh/chart: grafana-mltp-stack-0.1.0
+    app.kubernetes.io/name: grafana-mltp-stack
+    app.kubernetes.io/instance: grafana-mltp-stack
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: grafana-mltp-stack
+    app.kubernetes.io/component: mythical-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: grafana-mltp-stack
+      app.kubernetes.io/instance: grafana-mltp-stack
+      app.kubernetes.io/component: mythical-server
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: grafana-mltp-stack-0.1.0
+        app.kubernetes.io/name: grafana-mltp-stack
+        app.kubernetes.io/instance: grafana-mltp-stack
+        app.kubernetes.io/version: "1.0.0"
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/part-of: grafana-mltp-stack
+        app.kubernetes.io/component: mythical-server
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "4000"
+    spec:
+      
+      serviceAccountName: grafana-mltp-stack
+      
+      securityContext:
+        fsGroup: 0
+      initContainers:
+        - name: wait-for-postgres
+          image: busybox:1.35
+          command: ['sh', '-c', 'until nc -z grafana-mltp-stack-postgresql 5432; do echo waiting for postgres; sleep 2; done;']
+        - name: wait-for-alloy
+          image: busybox:1.35
+          command: ['sh', '-c', 'until nc -z grafana-mltp-stack-alloy 4317; do echo waiting for alloy; sleep 2; done;']
+      containers:
+        - name: mythical-server
+          
+          securityContext:
+            runAsNonRoot: false
+            runAsUser: 0
+          image: "grafana/intro-to-mltp:mythical-beasts-server-latest"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 4000
+              protocol: TCP
+            - name: alt
+              containerPort: 80
+              protocol: TCP
+          env:
+            - name: NAMESPACE
+              value: "production"
+            - name: LOGS_TARGET
+              value: "http://grafana-mltp-stack-loki:3100/loki/api/v1/push"
+            - name: TRACING_COLLECTOR_HOST
+              value: grafana-mltp-stack-alloy
+            - name: TRACING_COLLECTOR_PORT
+              value: "4317"
+            - name: PROFILE_COLLECTOR_HOST
+              value: grafana-mltp-stack-alloy
+            - name: PROFILE_COLLECTOR_PORT
+              value: "4040"
+            - name: OTEL_EXPORTER_OTLP_TRACES_INSECURE
+              value: "true"
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: status.podIP
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: "ip=$(POD_IP)"
+            - name: MYTHICAL_DATABASE_HOST
+              value: grafana-mltp-stack-postgresql
+            - name: MYTHICAL_DATABASE_HOST_PORT
+              value: "5432"
+            - name: MYTHICAL_DATABASE_USER
+              value: "postgres"
+            - name: MYTHICAL_DATABASE_PASSWORD
+              value: "mythical"
+            - name: MYTHICAL_QUEUE_HOST
+              value: mythical-queue
+            - name: MYTHICAL_QUEUE_PORT
+              value: "5672"
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+          resources:
+            limits:
+              cpu: 500m
+              memory: 512Mi
+            requests:
+              cpu: 100m
+              memory: 256Mi
+---
+# Source: grafana-mltp-stack/templates/postgresql-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana-mltp-stack-postgresql
+  namespace: grafana-mltp
+  labels:
+    helm.sh/chart: grafana-mltp-stack-0.1.0
+    app.kubernetes.io/name: grafana-mltp-stack
+    app.kubernetes.io/instance: grafana-mltp-stack
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: grafana-mltp-stack
+    app.kubernetes.io/component: postgresql
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: grafana-mltp-stack
+      app.kubernetes.io/instance: grafana-mltp-stack
+      app.kubernetes.io/component: postgresql
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: grafana-mltp-stack-0.1.0
+        app.kubernetes.io/name: grafana-mltp-stack
+        app.kubernetes.io/instance: grafana-mltp-stack
+        app.kubernetes.io/version: "1.0.0"
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/part-of: grafana-mltp-stack
+        app.kubernetes.io/component: postgresql
+    spec:
+      
+      serviceAccountName: grafana-mltp-stack
+      
+      securityContext:
+        fsGroup: 0
+      containers:
+        - name: postgresql
+          
+          securityContext:
+            runAsNonRoot: false
+            runAsUser: 0
+          image: "postgres:14.5"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: postgres
+              containerPort: 5432
+              protocol: TCP
+          env:
+            - name: POSTGRES_PASSWORD
+              value: "mythical"
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: postgresql-data
+              mountPath: /var/lib/postgresql/data
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - exec pg_isready -U "postgres" -h 127.0.0.1 -p 5432
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 6
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - -e
+                - |
+                  exec pg_isready -U "postgres" -h 127.0.0.1 -p 5432
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 6
+          resources:
+            limits:
+              cpu: 500m
+              memory: 512Mi
+            requests:
+              cpu: 100m
+              memory: 256Mi
+      volumes:
+        - name: postgresql-data
+          persistentVolumeClaim:
+            claimName: grafana-mltp-stack-postgresql-pvc
+---
+# Source: grafana-mltp-stack/templates/pyroscope-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana-mltp-stack-pyroscope
+  namespace: grafana-mltp
+  labels:
+    helm.sh/chart: grafana-mltp-stack-0.1.0
+    app.kubernetes.io/name: grafana-mltp-stack
+    app.kubernetes.io/instance: grafana-mltp-stack
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: grafana-mltp-stack
+    app.kubernetes.io/component: pyroscope
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: grafana-mltp-stack
+      app.kubernetes.io/instance: grafana-mltp-stack
+      app.kubernetes.io/component: pyroscope
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: grafana-mltp-stack-0.1.0
+        app.kubernetes.io/name: grafana-mltp-stack
+        app.kubernetes.io/instance: grafana-mltp-stack
+        app.kubernetes.io/version: "1.0.0"
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/part-of: grafana-mltp-stack
+        app.kubernetes.io/component: pyroscope
+    spec:
+      
+      serviceAccountName: grafana-mltp-stack
+      
+      securityContext:
+        fsGroup: 0
+      containers:
+        - name: pyroscope
+          
+          securityContext:
+            runAsNonRoot: false
+            runAsUser: 0
+          image: "grafana/pyroscope:1.13.1"
+          imagePullPolicy: IfNotPresent
+          args: ["server"]
+          ports:
+            - name: http
+              containerPort: 4040
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+          resources:
+            limits:
+              cpu: 500m
+              memory: 512Mi
+            requests:
+              cpu: 100m
+              memory: 256Mi
+---
+# Source: grafana-mltp-stack/templates/rabbitmq-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mythical-queue
+  namespace: grafana-mltp
+  labels:
+    helm.sh/chart: grafana-mltp-stack-0.1.0
+    app.kubernetes.io/name: grafana-mltp-stack
+    app.kubernetes.io/instance: grafana-mltp-stack
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: grafana-mltp-stack
+    app.kubernetes.io/component: rabbitmq
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: grafana-mltp-stack
+      app.kubernetes.io/instance: grafana-mltp-stack
+      app.kubernetes.io/component: rabbitmq
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: grafana-mltp-stack-0.1.0
+        app.kubernetes.io/name: grafana-mltp-stack
+        app.kubernetes.io/instance: grafana-mltp-stack
+        app.kubernetes.io/version: "1.0.0"
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/part-of: grafana-mltp-stack
+        app.kubernetes.io/component: rabbitmq
+    spec:
+      
+      serviceAccountName: grafana-mltp-stack
+      
+      securityContext:
+        fsGroup: 0
+      containers:
+        - name: rabbitmq
+          
+          securityContext:
+            runAsNonRoot: false
+            runAsUser: 0
+          image: "rabbitmq:management"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: amqp
+              containerPort: 5672
+              protocol: TCP
+            - name: management
+              containerPort: 15672
+              protocol: TCP
+          livenessProbe:
+            exec:
+              command:
+                - rabbitmq-diagnostics
+                - check_running
+            initialDelaySeconds: 60
+            periodSeconds: 60
+            timeoutSeconds: 15
+            successThreshold: 1
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command:
+                - rabbitmq-diagnostics
+                - check_running
+            initialDelaySeconds: 20
+            periodSeconds: 60
+            timeoutSeconds: 15
+            successThreshold: 1
+            failureThreshold: 3
+          resources:
+            limits:
+              cpu: 500m
+              memory: 512Mi
+            requests:
+              cpu: 100m
+              memory: 256Mi
+---
+# Source: grafana-mltp-stack/templates/tempo-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana-mltp-stack-tempo
+  namespace: grafana-mltp
+  labels:
+    helm.sh/chart: grafana-mltp-stack-0.1.0
+    app.kubernetes.io/name: grafana-mltp-stack
+    app.kubernetes.io/instance: grafana-mltp-stack
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: grafana-mltp-stack
+    app.kubernetes.io/component: tempo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: grafana-mltp-stack
+      app.kubernetes.io/instance: grafana-mltp-stack
+      app.kubernetes.io/component: tempo
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: grafana-mltp-stack-0.1.0
+        app.kubernetes.io/name: grafana-mltp-stack
+        app.kubernetes.io/instance: grafana-mltp-stack
+        app.kubernetes.io/version: "1.0.0"
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/part-of: grafana-mltp-stack
+        app.kubernetes.io/component: tempo
+    spec:
+      
+      serviceAccountName: grafana-mltp-stack
+      
+      securityContext:
+        fsGroup: 0
+      containers:
+        - name: tempo
+          
+          securityContext:
+            runAsNonRoot: false
+            runAsUser: 0
+          image: "grafana/tempo:2.7.2"
+          imagePullPolicy: IfNotPresent
+          args:
+            - -config.file=/etc/tempo.yaml
+          ports:
+            - name: http
+              containerPort: 3200
+              protocol: TCP
+            - name: zipkin
+              containerPort: 9411
+              protocol: TCP
+            - name: otlp-grpc
+              containerPort: 4317
+              protocol: TCP
+            - name: otlp-http
+              containerPort: 4318
+              protocol: TCP
+            - name: jaeger
+              containerPort: 14250
+              protocol: TCP
+          volumeMounts:
+            - name: config
+              mountPath: /etc/tempo.yaml
+              subPath: tempo.yaml
+            - name: tempo-data
+              mountPath: /var/tempo
+          livenessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+          resources:
+            limits:
+              cpu: 500m
+              memory: 512Mi
+            requests:
+              cpu: 100m
+              memory: 256Mi
+      volumes:
+        - name: config
+          configMap:
+            name: grafana-mltp-stack-tempo-config
+        - name: tempo-data
+          emptyDir: {}
+---
+# Source: grafana-mltp-stack/templates/namespace.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: grafana-mltp
+  labels:
+    helm.sh/chart: grafana-mltp-stack-0.1.0
+    app.kubernetes.io/name: grafana-mltp-stack
+    app.kubernetes.io/instance: grafana-mltp-stack
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: grafana-mltp-stack
+    name: grafana-mltp
+  annotations:
+    helm.sh/hook: pre-install
+    helm.sh/hook-weight: "-10"

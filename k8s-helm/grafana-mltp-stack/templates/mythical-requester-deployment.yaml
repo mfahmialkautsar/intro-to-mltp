@@ -1,0 +1,108 @@
+{{- if .Values.microservices.requester.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "grafana-mltp-stack.fullname" . }}-mythical-requester
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "grafana-mltp-stack.labels" . | nindent 4 }}
+    app.kubernetes.io/component: mythical-requester
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "grafana-mltp-stack.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: mythical-requester
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/alloy-configmap.yaml") . | sha256sum }}
+      labels:
+        {{- include "grafana-mltp-stack.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: mythical-requester
+    spec:
+      serviceAccountName: {{ include "grafana-mltp-stack.serviceAccountName" . }}
+      {{- include "grafana-mltp-stack.podSecurityContext" . | nindent 6 }}
+      initContainers:
+        - name: wait-for-server
+          image: busybox:1.35
+          command: ['sh', '-c']
+          args:
+            - |
+              until nslookup {{ include "grafana-mltp-stack.fullname" . }}-mythical-server.{{ .Values.global.namespace }}.svc.cluster.local; do
+                echo "Waiting for mythical-server to be ready..."
+                sleep 2
+              done
+              echo "Mythical server is ready!"
+        - name: wait-for-rabbitmq
+          image: busybox:1.35
+          command: ['sh', '-c']
+          args:
+            - |
+              until nc -z mythical-queue.{{ .Values.global.namespace }}.svc.cluster.local {{ .Values.infrastructure.rabbitmq.ports.amqp }}; do
+                echo "Waiting for RabbitMQ to be ready..."
+                sleep 2
+              done
+              echo "RabbitMQ is ready!"
+      containers:
+        - name: mythical-requester
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 1000
+          image: "{{ .Values.microservices.requester.image.repository }}:{{ .Values.microservices.requester.image.tag }}"
+          imagePullPolicy: {{ .Values.microservices.requester.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.microservices.requester.ports.http }}
+              protocol: TCP
+          env:
+            - name: NAMESPACE
+              value: {{ .Values.microservices.requester.env.namespace | quote }}
+            - name: LOGS_TARGET
+              value: {{ .Values.microservices.requester.env.logsTarget | quote }}
+            - name: TRACING_COLLECTOR_HOST
+              value: {{ include "grafana-mltp-stack.fullname" . }}-alloy.{{ .Values.global.namespace }}.svc.cluster.local
+            - name: TRACING_COLLECTOR_PORT
+              value: {{ .Values.microservices.requester.env.tracingCollectorPort | quote }}
+            - name: PROFILE_COLLECTOR_HOST
+              value: {{ include "grafana-mltp-stack.fullname" . }}-alloy.{{ .Values.global.namespace }}.svc.cluster.local
+            - name: PROFILE_COLLECTOR_PORT
+              value: {{ .Values.microservices.requester.env.profileCollectorPort | quote }}
+            - name: OTEL_EXPORTER_OTLP_TRACES_INSECURE
+              value: {{ .Values.microservices.requester.env.otelExporterOtlpTracesInsecure | quote }}
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: {{ .Values.microservices.requester.env.otelResourceAttributes | quote }}
+            - name: MYTHICAL_BEASTS_SERVER
+              value: "http://{{ include "grafana-mltp-stack.fullname" . }}-mythical-server.{{ .Values.global.namespace }}.svc.cluster.local:{{ .Values.microservices.server.ports.http }}"
+            - name: RABBITMQ_HOST
+              value: mythical-queue.{{ .Values.global.namespace }}.svc.cluster.local
+            - name: RABBITMQ_PORT
+              value: {{ .Values.infrastructure.rabbitmq.ports.amqp | quote }}
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            {{- toYaml .Values.microservices.requester.resources | nindent 12 }}
+      {{- with .Values.global.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.global.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.global.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

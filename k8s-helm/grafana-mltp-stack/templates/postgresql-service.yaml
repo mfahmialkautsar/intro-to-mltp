@@ -1,0 +1,22 @@
+{{- if .Values.infrastructure.postgresql.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "grafana-mltp-stack.fullname" . }}-postgresql
+  namespace: {{ .Values.global.namespace | default .Release.Namespace }}
+  labels:
+    {{- include "grafana-mltp-stack.labels" . | nindent 4 }}
+    {{- include "grafana-mltp-stack.componentLabels" "postgresql" | nindent 4 }}
+spec:
+  type: {{ if and .Values.service.autoExpose.enabled .Values.service.autoExpose.services.postgresql.enabled }}{{ .Values.service.type }}{{ else }}ClusterIP{{ end }}
+  ports:
+    - port: {{ .Values.infrastructure.postgresql.ports.postgres }}
+      targetPort: postgres
+      protocol: TCP
+      name: postgres
+      {{- if and .Values.service.autoExpose.enabled .Values.service.autoExpose.services.postgresql.enabled (eq .Values.service.type "NodePort") }}
+      nodePort: {{ .Values.service.autoExpose.services.postgresql.nodePort }}
+      {{- end }}
+  selector:
+    {{- include "grafana-mltp-stack.componentSelectorLabels" (list . "postgresql") | nindent 4 }}
+{{- end }}

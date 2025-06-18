@@ -1,0 +1,53 @@
+apiVersion: v2
+name: grafana-mltp-stack
+description: A comprehensive Helm chart for deploying the Grafana MLTP (Metrics, Logs, Traces, Profiles) observability stack with sample microservices
+
+# This is an application chart that deploys a complete observability stack
+type: application
+
+# This is the chart version. Increment when making changes to the chart
+version: 0.1.0
+
+# Version of the applications being deployed
+appVersion: "1.0.0"
+
+# Chart keywords for easier discovery
+keywords:
+  - grafana
+  - observability
+  - metrics
+  - logs
+  - traces
+  - profiles
+  - alloy
+  - tempo
+  - loki
+  - mimir
+  - pyroscope
+  - beyla
+  - kubernetes
+  - monitoring
+
+# Home page for the chart
+home: https://github.com/grafana/intro-to-mltp
+
+# Chart sources
+sources:
+  - https://github.com/grafana/intro-to-mltp
+
+# Chart maintainers
+maintainers:
+  - name: Grafana Labs
+    email: support@grafana.com
+    url: https://grafana.com
+
+# Chart icon
+icon: https://grafana.com/static/assets/img/grafana_icon.svg
+
+# Chart dependencies (none for this comprehensive stack)
+dependencies: []
+
+# Chart annotations for additional metadata
+annotations:
+  category: Observability
+  licenses: Apache-2.0

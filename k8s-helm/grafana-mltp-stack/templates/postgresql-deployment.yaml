@@ -1,0 +1,80 @@
+{{- if .Values.infrastructure.postgresql.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "grafana-mltp-stack.fullname" . }}-postgresql
+  namespace: {{ .Values.global.namespace | default .Release.Namespace }}
+  labels:
+    {{- include "grafana-mltp-stack.labels" . | nindent 4 }}
+    {{- include "grafana-mltp-stack.componentLabels" "postgresql" | nindent 4 }}
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "grafana-mltp-stack.componentSelectorLabels" (list . "postgresql") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "grafana-mltp-stack.labels" . | nindent 8 }}
+        {{- include "grafana-mltp-stack.componentLabels" "postgresql" | nindent 8 }}
+    spec:
+      {{- include "grafana-mltp-stack.imagePullSecrets" . | nindent 6 }}
+      serviceAccountName: {{ include "grafana-mltp-stack.serviceAccountName" . }}
+      {{- include "grafana-mltp-stack.podSecurityContext" . | nindent 6 }}
+      containers:
+        - name: postgresql
+          {{- include "grafana-mltp-stack.securityContext" . | nindent 10 }}
+          image: "{{ .Values.infrastructure.postgresql.image.repository }}:{{ .Values.infrastructure.postgresql.image.tag }}"
+          imagePullPolicy: {{ .Values.infrastructure.postgresql.image.pullPolicy }}
+          ports:
+            - name: postgres
+              containerPort: {{ .Values.infrastructure.postgresql.ports.postgres }}
+              protocol: TCP
+          env:
+            - name: POSTGRES_PASSWORD
+              value: {{ .Values.infrastructure.postgresql.auth.postgresPassword | quote }}
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: postgresql-data
+              mountPath: /var/lib/postgresql/data
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - exec pg_isready -U "postgres" -h 127.0.0.1 -p 5432
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 6
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - -e
+                - |
+                  exec pg_isready -U "postgres" -h 127.0.0.1 -p 5432
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 6
+          resources:
+            {{- toYaml .Values.infrastructure.postgresql.resources | nindent 12 }}
+      volumes:
+        - name: postgresql-data
+          {{- if .Values.infrastructure.postgresql.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "grafana-mltp-stack.fullname" . }}-postgresql-pvc
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+      {{- include "grafana-mltp-stack.nodeSelector" . | nindent 6 }}
+      {{- include "grafana-mltp-stack.affinity" . | nindent 6 }}
+      {{- include "grafana-mltp-stack.tolerations" . | nindent 6 }}
+{{- end }}

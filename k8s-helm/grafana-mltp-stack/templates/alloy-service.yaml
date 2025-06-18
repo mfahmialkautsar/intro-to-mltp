@@ -1,0 +1,42 @@
+{{- if .Values.observability.alloy.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "grafana-mltp-stack.fullname" . }}-alloy
+  namespace: {{ .Values.global.namespace | default .Release.Namespace }}
+  labels:
+    {{- include "grafana-mltp-stack.labels" . | nindent 4 }}
+    {{- include "grafana-mltp-stack.componentLabels" "alloy" | nindent 4 }}
+spec:
+  type: {{ if and .Values.service.autoExpose.enabled .Values.service.autoExpose.services.alloy.enabled }}{{ .Values.service.type }}{{ else }}ClusterIP{{ end }}
+  ports:
+    - port: {{ .Values.observability.alloy.ports.http }}
+      targetPort: http
+      protocol: TCP
+      name: http
+      {{- if and .Values.service.autoExpose.enabled .Values.service.autoExpose.services.alloy.enabled (eq .Values.service.type "NodePort") }}
+      nodePort: {{ .Values.service.autoExpose.services.alloy.nodePort }}
+      {{- end }}
+    - port: {{ .Values.observability.alloy.ports.alt }}
+      targetPort: alt
+      protocol: TCP
+      name: alt
+    - port: {{ .Values.observability.alloy.ports.jaeger }}
+      targetPort: jaeger
+      protocol: TCP
+      name: jaeger
+    - port: {{ .Values.observability.alloy.ports.zipkin }}
+      targetPort: zipkin
+      protocol: TCP
+      name: zipkin
+    - port: {{ .Values.observability.alloy.ports.otlp_grpc }}
+      targetPort: otlp-grpc
+      protocol: TCP
+      name: otlp-grpc
+    - port: {{ .Values.observability.alloy.ports.otlp_http }}
+      targetPort: otlp-http
+      protocol: TCP
+      name: otlp-http
+  selector:
+    {{- include "grafana-mltp-stack.componentSelectorLabels" (list . "alloy") | nindent 4 }}
+{{- end }}

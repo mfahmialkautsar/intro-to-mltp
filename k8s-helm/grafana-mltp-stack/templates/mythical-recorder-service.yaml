@@ -1,0 +1,23 @@
+{{- if .Values.microservices.recorder.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "grafana-mltp-stack.fullname" . }}-mythical-recorder
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "grafana-mltp-stack.labels" . | nindent 4 }}
+    app.kubernetes.io/component: mythical-recorder
+spec:
+  type: {{ if and .Values.service.autoExpose.enabled .Values.service.autoExpose.services.mythicalRecorder.enabled }}{{ .Values.service.type }}{{ else }}ClusterIP{{ end }}
+  ports:
+    - port: {{ .Values.microservices.recorder.ports.http }}
+      targetPort: http
+      protocol: TCP
+      name: http
+      {{- if and .Values.service.autoExpose.enabled .Values.service.autoExpose.services.mythicalRecorder.enabled (eq .Values.service.type "NodePort") }}
+      nodePort: {{ .Values.service.autoExpose.services.mythicalRecorder.nodePort }}
+      {{- end }}
+  selector:
+    {{- include "grafana-mltp-stack.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: mythical-recorder
+{{- end }}

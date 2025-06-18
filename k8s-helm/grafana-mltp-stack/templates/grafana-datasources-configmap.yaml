@@ -1,0 +1,93 @@
+{{- if .Values.observability.grafana.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "grafana-mltp-stack.fullname" . }}-grafana-datasources
+  namespace: {{ .Values.global.namespace | default .Release.Namespace }}
+  labels:
+    {{- include "grafana-mltp-stack.labels" . | nindent 4 }}
+    {{- include "grafana-mltp-stack.componentLabels" "grafana" | nindent 4 }}
+data:
+  datasources.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Mimir
+        type: prometheus
+        uid: mimir
+        access: proxy
+        url: http://{{ include "grafana-mltp-stack.fullname" . }}-mimir:9009/prometheus
+        isDefault: true
+        editable: true
+        jsonData:
+          httpMethod: POST
+          timeInterval: 5s
+          defaultEditor: code
+          manageAlerts: true
+          alertmanagerUid: mimir
+          prometheusType: Mimir
+          prometheusVersion: 2.52.0
+          cacheLevel: 'High'
+          incrementalQuerying: true
+          incrementalQueryOverlapWindow: 10m
+          queryTimeout: 60s
+          defaultRegion: default
+
+      - name: Loki
+        type: loki
+        uid: loki
+        access: proxy
+        url: http://{{ include "grafana-mltp-stack.fullname" . }}-loki:3100
+        editable: true
+        jsonData:
+          maxLines: 1000
+          derivedFields:
+            - name: "traceID"
+              matcherRegex: "traceID=(\\w+)"
+              url: "$${__value.raw}"
+              datasourceUid: tempo
+
+      - name: Tempo
+        type: tempo
+        uid: tempo
+        access: proxy
+        url: http://{{ include "grafana-mltp-stack.fullname" . }}-tempo:3200
+        editable: true
+        jsonData:
+          httpMethod: GET
+          tracesToLogsV2:
+            datasourceUid: loki
+            spanStartTimeShift: -1h
+            spanEndTimeShift: 1h
+            tags:
+              - key: service.name
+                value: service_name
+            filterByTraceID: false
+            filterBySpanID: false
+            customQuery: true
+            query: 'method="$${__span.tags.method}"'
+          tracesToMetrics:
+            datasourceUid: mimir
+            spanStartTimeShift: -1h
+            spanEndTimeShift: 1h
+            tags:
+              - key: service.name
+                value: service_name
+            queries:
+              - name: Sample query
+                query: 'sum(rate(http_requests_total{$$__tags}[5m]))'
+          serviceMap:
+            datasourceUid: mimir
+          nodeGraph:
+            enabled: true
+          search:
+            hide: false
+
+      - name: Pyroscope
+        type: pyroscope
+        uid: pyroscope
+        access: proxy
+        url: http://{{ include "grafana-mltp-stack.fullname" . }}-pyroscope:4040
+        editable: true
+        jsonData:
+          minStep: '15s'
+{{- end }}
