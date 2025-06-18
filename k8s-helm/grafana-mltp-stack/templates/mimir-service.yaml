@@ -1,0 +1,22 @@
+{{- if .Values.observability.mimir.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "grafana-mltp-stack.fullname" . }}-mimir
+  namespace: {{ .Values.global.namespace | default .Release.Namespace }}
+  labels:
+    {{- include "grafana-mltp-stack.labels" . | nindent 4 }}
+    {{- include "grafana-mltp-stack.componentLabels" "mimir" | nindent 4 }}
+spec:
+  type: {{ if and .Values.service.autoExpose.enabled .Values.service.autoExpose.services.mimir.enabled }}{{ .Values.service.type }}{{ else }}ClusterIP{{ end }}
+  ports:
+    - port: {{ .Values.observability.mimir.ports.http }}
+      targetPort: http
+      protocol: TCP
+      name: http
+      {{- if and .Values.service.autoExpose.enabled .Values.service.autoExpose.services.mimir.enabled (eq .Values.service.type "NodePort") }}
+      nodePort: {{ .Values.service.autoExpose.services.mimir.nodePort }}
+      {{- end }}
+  selector:
+    {{- include "grafana-mltp-stack.componentSelectorLabels" (list . "mimir") | nindent 4 }}
+{{- end }}

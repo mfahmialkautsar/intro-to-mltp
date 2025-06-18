@@ -1,0 +1,38 @@
+{{- if .Values.observability.tempo.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "grafana-mltp-stack.fullname" . }}-tempo
+  namespace: {{ .Values.global.namespace | default .Release.Namespace }}
+  labels:
+    {{- include "grafana-mltp-stack.labels" . | nindent 4 }}
+    {{- include "grafana-mltp-stack.componentLabels" "tempo" | nindent 4 }}
+spec:
+  type: {{ if and .Values.service.autoExpose.enabled .Values.service.autoExpose.services.tempo.enabled }}{{ .Values.service.type }}{{ else }}ClusterIP{{ end }}
+  ports:
+    - port: {{ .Values.observability.tempo.ports.http }}
+      targetPort: http
+      protocol: TCP
+      name: http
+      {{- if and .Values.service.autoExpose.enabled .Values.service.autoExpose.services.tempo.enabled (eq .Values.service.type "NodePort") }}
+      nodePort: {{ .Values.service.autoExpose.services.tempo.nodePort }}
+      {{- end }}
+    - port: {{ .Values.observability.tempo.ports.zipkin }}
+      targetPort: zipkin
+      protocol: TCP
+      name: zipkin
+    - port: {{ .Values.observability.tempo.ports.otlp_grpc }}
+      targetPort: otlp-grpc
+      protocol: TCP
+      name: otlp-grpc
+    - port: {{ .Values.observability.tempo.ports.otlp_http }}
+      targetPort: otlp-http
+      protocol: TCP
+      name: otlp-http
+    - port: {{ .Values.observability.tempo.ports.jaeger }}
+      targetPort: jaeger
+      protocol: TCP
+      name: jaeger
+  selector:
+    {{- include "grafana-mltp-stack.componentSelectorLabels" (list . "tempo") | nindent 4 }}
+{{- end }}

@@ -1,0 +1,27 @@
+{{- if .Values.microservices.server.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "grafana-mltp-stack.fullname" . }}-mythical-server
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "grafana-mltp-stack.labels" . | nindent 4 }}
+    app.kubernetes.io/component: mythical-server
+spec:
+  type: {{ if and .Values.service.autoExpose.enabled .Values.service.autoExpose.services.mythicalServer.enabled }}{{ .Values.service.type }}{{ else }}ClusterIP{{ end }}
+  ports:
+    - port: {{ .Values.microservices.server.ports.http }}
+      targetPort: http
+      protocol: TCP
+      name: http
+      {{- if and .Values.service.autoExpose.enabled .Values.service.autoExpose.services.mythicalServer.enabled (eq .Values.service.type "NodePort") }}
+      nodePort: {{ .Values.service.autoExpose.services.mythicalServer.nodePort }}
+      {{- end }}
+    - port: {{ .Values.microservices.server.ports.alt }}
+      targetPort: alt
+      protocol: TCP
+      name: alt
+  selector:
+    {{- include "grafana-mltp-stack.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: mythical-server
+{{- end }}

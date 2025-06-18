@@ -1,0 +1,133 @@
+{{- if and .Values.service.autoExpose.enabled .Values.service.autoExpose.services.grafana.enabled }}
+🚀 Auto-Exposure is ENABLED! Services are exposed like Docker Compose:
+
+{{- if eq .Values.service.type "NodePort" }}
+🌐 Access services directly:
+  export NODE_IP=$(kubectl get nodes --namespace {{ .Values.global.namespace }} -o jsonpath="{.items[0].status.addresses[0].address}")
+  
+  # Main Services:
+  {{- if .Values.service.autoExpose.services.grafana.enabled }}
+  - Grafana Dashboard: http://$NODE_IP:{{ .Values.service.autoExpose.services.grafana.nodePort }}
+  {{- end }}
+  {{- if .Values.service.autoExpose.services.mythicalServer.enabled }}
+  - Mythical Server API: http://$NODE_IP:{{ .Values.service.autoExpose.services.mythicalServer.nodePort }}
+  {{- end }}
+  {{- if .Values.service.autoExpose.services.mythicalRequester.enabled }}
+  - Mythical Requester: http://$NODE_IP:{{ .Values.service.autoExpose.services.mythicalRequester.nodePort }}/metrics
+  {{- end }}
+  {{- if .Values.service.autoExpose.services.mythicalRecorder.enabled }}
+  - Mythical Recorder: http://$NODE_IP:{{ .Values.service.autoExpose.services.mythicalRecorder.nodePort }}/metrics
+  {{- end }}
+  
+  # Observability Stack:
+  {{- if .Values.service.autoExpose.services.loki.enabled }}
+  - Loki (Logs): http://$NODE_IP:{{ .Values.service.autoExpose.services.loki.nodePort }}
+  {{- end }}
+  {{- if .Values.service.autoExpose.services.mimir.enabled }}
+  - Mimir (Metrics): http://$NODE_IP:{{ .Values.service.autoExpose.services.mimir.nodePort }}
+  {{- end }}
+  {{- if .Values.service.autoExpose.services.tempo.enabled }}
+  - Tempo (Traces): http://$NODE_IP:{{ .Values.service.autoExpose.services.tempo.nodePort }}
+  {{- end }}
+  {{- if .Values.service.autoExpose.services.pyroscope.enabled }}
+  - Pyroscope (Profiling): http://$NODE_IP:{{ .Values.service.autoExpose.services.pyroscope.nodePort }}
+  {{- end }}
+  {{- if .Values.service.autoExpose.services.rabbitmq.enabled }}
+  - RabbitMQ Management: http://$NODE_IP:{{ .Values.service.autoExpose.services.rabbitmq.nodePort }}
+  {{- end }}
+
+💡 Run './show-exposed-ports.sh' for a convenient overview of all exposed services.
+
+{{- else }}
+  NOTE: Auto-exposure is enabled but service.type is not NodePort.
+  Services will be exposed as {{ .Values.service.type }}.
+{{- end }}
+
+{{- else }}
+1. Get the Grafana URL by running these commands:
+{{- if .Values.ingress.enabled }}
+{{- range $host := .Values.ingress.hosts }}
+  {{- range .paths }}
+  http{{ if $.Values.ingress.tls }}s{{ end }}://{{ $host.host }}{{ .path }}
+  {{- end }}
+{{- end }}
+{{- else if contains "NodePort" .Values.service.type }}
+  export NODE_PORT=$(kubectl get --namespace {{ .Values.global.namespace }} -o jsonpath="{.spec.ports[0].nodePort}" services {{ include "grafana-mltp-stack.fullname" . }}-grafana)
+  export NODE_IP=$(kubectl get nodes --namespace {{ .Values.global.namespace }} -o jsonpath="{.items[0].status.addresses[0].address}")
+  echo http://$NODE_IP:$NODE_PORT
+{{- else if contains "LoadBalancer" .Values.service.type }}
+     NOTE: It may take a few minutes for the LoadBalancer IP to be available.
+           You can watch the status of by running 'kubectl get --namespace {{ .Values.global.namespace }} svc -w {{ include "grafana-mltp-stack.fullname" . }}-grafana'
+  export SERVICE_IP=$(kubectl get svc --namespace {{ .Values.global.namespace }} {{ include "grafana-mltp-stack.fullname" . }}-grafana --template "{{"{{ range (index .status.loadBalancer.ingress 0) }}{{.}}{{ end }}"}}")
+  echo http://$SERVICE_IP:3000
+{{- else if contains "ClusterIP" .Values.service.type }}
+  kubectl --namespace {{ .Values.global.namespace }} port-forward svc/{{ include "grafana-mltp-stack.fullname" . }}-grafana 3000:3000
+  echo "Visit http://127.0.0.1:3000 to access Grafana"
+{{- end }}
+{{- end }}
+
+2. Grafana login credentials:
+   Username: admin
+   Password: admin
+
+3. Check the status of all components:
+   kubectl get pods -n {{ .Values.global.namespace }}
+
+4. Access other services via port-forwarding:
+   # Mythical Beasts Server
+   kubectl --namespace {{ .Values.global.namespace }} port-forward svc/{{ include "grafana-mltp-stack.fullname" . }}-mythical-server 4000:4000
+
+   # Mythical Beasts Requester
+   kubectl --namespace {{ .Values.global.namespace }} port-forward svc/{{ include "grafana-mltp-stack.fullname" . }}-mythical-requester 4001:4001
+
+   # Mythical Beasts Recorder
+   kubectl --namespace {{ .Values.global.namespace }} port-forward svc/{{ include "grafana-mltp-stack.fullname" . }}-mythical-recorder 4002:4002
+
+   # RabbitMQ Management
+   kubectl --namespace {{ .Values.global.namespace }} port-forward svc/{{ include "grafana-mltp-stack.fullname" . }}-rabbitmq 15672:15672
+
+5. Monitor the k6 load test:
+   kubectl logs -n {{ .Values.global.namespace }} -l app.kubernetes.io/component=k6-loadtest -f
+
+6. Verify observability stack:
+   # Check Tempo (Tracing)
+   kubectl --namespace {{ .Values.global.namespace }} port-forward svc/{{ include "grafana-mltp-stack.fullname" . }}-tempo 3200:3200
+
+   # Check Loki (Logging)
+   kubectl --namespace {{ .Values.global.namespace }} port-forward svc/{{ include "grafana-mltp-stack.fullname" . }}-loki 3100:3100
+
+   # Check Mimir (Metrics)
+   kubectl --namespace {{ .Values.global.namespace }} port-forward svc/{{ include "grafana-mltp-stack.fullname" . }}-mimir 9009:9009
+
+   # Check Pyroscope (Profiling)
+   kubectl --namespace {{ .Values.global.namespace }} port-forward svc/{{ include "grafana-mltp-stack.fullname" . }}-pyroscope 4040:4040
+
+7. Test the mythical beasts API:
+   # Create a beast
+   curl -X POST http://localhost:4000/unicorn -H "Content-Type: application/json" -d '{"name": "sparkles"}'
+
+   # List beasts
+   curl http://localhost:4000/unicorn
+
+   # Delete a beast
+   curl -X DELETE http://localhost:4000/unicorn -H "Content-Type: application/json" -d '{"name": "sparkles"}'
+
+8. Datasources in Grafana are pre-configured:
+   - Tempo: http://{{ include "grafana-mltp-stack.fullname" . }}-tempo:3200
+   - Loki: http://{{ include "grafana-mltp-stack.fullname" . }}-loki:3100
+   - Mimir: http://{{ include "grafana-mltp-stack.fullname" . }}-mimir:9009
+   - Pyroscope: http://{{ include "grafana-mltp-stack.fullname" . }}-pyroscope:4040
+
+9. To uninstall the chart:
+   helm uninstall {{ .Release.Name }} -n {{ .Values.global.namespace }}
+   kubectl delete namespace {{ .Values.global.namespace }}
+
+{{- if .Values.beyla.enabled }}
+10. Beyla auto-instrumentation is enabled for:
+    - Mythical Server (port {{ .Values.beyla.services.server.openPort }})
+    - Mythical Requester (port {{ .Values.beyla.services.requester.openPort }})
+    - Mythical Recorder (port {{ .Values.beyla.services.recorder.openPort }})
+{{- end }}
+
+For more information about the Grafana MLTP (Metrics, Logs, Traces, Profiles) stack,
+visit: https://github.com/grafana/intro-to-mltp

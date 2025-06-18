@@ -1,0 +1,88 @@
+{{- if .Values.observability.grafana.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "grafana-mltp-stack.fullname" . }}-grafana
+  namespace: {{ .Values.global.namespace | default .Release.Namespace }}
+  labels:
+    {{- include "grafana-mltp-stack.labels" . | nindent 4 }}
+    {{- include "grafana-mltp-stack.componentLabels" "grafana" | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "grafana-mltp-stack.componentSelectorLabels" (list . "grafana") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "grafana-mltp-stack.labels" . | nindent 8 }}
+        {{- include "grafana-mltp-stack.componentLabels" "grafana" | nindent 8 }}
+    spec:
+      {{- include "grafana-mltp-stack.imagePullSecrets" . | nindent 6 }}
+      serviceAccountName: {{ include "grafana-mltp-stack.serviceAccountName" . }}
+      {{- include "grafana-mltp-stack.podSecurityContext" . | nindent 6 }}
+      containers:
+        - name: grafana
+          {{- include "grafana-mltp-stack.securityContext" . | nindent 10 }}
+          image: "{{ .Values.observability.grafana.image.repository }}:{{ .Values.observability.grafana.image.tag }}"
+          imagePullPolicy: {{ .Values.observability.grafana.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.observability.grafana.ports.http }}
+              protocol: TCP
+          env:
+            - name: GF_FEATURE_TOGGLES_ENABLE
+              value: {{ .Values.observability.grafana.env.featureToggles | quote }}
+            - name: GF_INSTALL_PLUGINS
+              value: {{ .Values.observability.grafana.env.installPlugins | quote }}
+            - name: GF_AUTH_ANONYMOUS_ENABLED
+              value: {{ .Values.observability.grafana.env.authAnonymousEnabled | quote }}
+            - name: GF_AUTH_ANONYMOUS_ORG_ROLE
+              value: {{ .Values.observability.grafana.env.authAnonymousOrgRole | quote }}
+            - name: GF_AUTH_DISABLE_LOGIN_FORM
+              value: {{ .Values.observability.grafana.env.authDisableLoginForm | quote }}
+          volumeMounts:
+            - name: grafana-storage
+              mountPath: /var/lib/grafana
+            - name: datasources
+              mountPath: /etc/grafana/provisioning/datasources
+            - name: dashboards-config
+              mountPath: /etc/grafana/provisioning/dashboards
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.observability.grafana.resources | nindent 12 }}
+      volumes:
+        - name: grafana-storage
+          {{- if .Values.observability.grafana.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "grafana-mltp-stack.fullname" . }}-grafana-pvc
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        - name: datasources
+          configMap:
+            name: {{ include "grafana-mltp-stack.fullname" . }}-grafana-datasources
+        - name: dashboards-config
+          configMap:
+            name: {{ include "grafana-mltp-stack.fullname" . }}-grafana-dashboards-config
+      {{- include "grafana-mltp-stack.nodeSelector" . | nindent 6 }}
+      {{- include "grafana-mltp-stack.affinity" . | nindent 6 }}
+      {{- include "grafana-mltp-stack.tolerations" . | nindent 6 }}
+{{- end }}

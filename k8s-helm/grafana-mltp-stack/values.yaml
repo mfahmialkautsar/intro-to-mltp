@@ -1,0 +1,430 @@
+# Grafana MLTP Stack Helm Chart Values
+# This chart deploys a complete observability stack with sample microservices
+
+global:
+  # Global settings
+  namespace: grafana-mltp
+  clusterName: "local-k8s"  # Cluster name for observability
+  storageClass: ""  # Use default storage class
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+# Sample microservices configuration
+microservices:
+  enabled: true
+  
+  # Mythical Beasts Server
+  server:
+    enabled: true
+    expose: true  # Auto-expose on NodePort 30001
+    image:
+      repository: grafana/intro-to-mltp
+      tag: mythical-beasts-server-latest
+      pullPolicy: IfNotPresent
+    ports:
+      http: 4000
+      alt: 80
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "100m"
+      limits:
+        memory: "512Mi"
+        cpu: "500m"
+    env:
+      namespace: "production"
+      logsTarget: "http://grafana-mltp-stack-loki:3100/loki/api/v1/push"
+      tracingCollectorHost: "grafana-mltp-stack-alloy"
+      tracingCollectorPort: "4317"
+      profileCollectorHost: "grafana-mltp-stack-alloy"
+      profileCollectorPort: "4040"
+      otelExporterOtlpTracesInsecure: "true"
+      otelResourceAttributes: "ip=1.2.3.5"
+
+  # Mythical Beasts Requester
+  requester:
+    enabled: true
+    image:
+      repository: grafana/intro-to-mltp
+      tag: mythical-beasts-requester-latest
+      pullPolicy: IfNotPresent
+    ports:
+      http: 4001
+    resources:
+      requests:
+        memory: "128Mi"
+        cpu: "50m"
+      limits:
+        memory: "256Mi"
+        cpu: "200m"
+    env:
+      namespace: "production"
+      logsTarget: "http://grafana-mltp-stack-loki:3100/loki/api/v1/push"
+      tracingCollectorHost: "grafana-mltp-stack-alloy"
+      tracingCollectorPort: "4317"
+      profileCollectorHost: "grafana-mltp-stack-alloy"
+      profileCollectorPort: "4040"
+      otelExporterOtlpTracesInsecure: "true"
+      otelResourceAttributes: "ip=1.2.3.4"
+
+  # Mythical Beasts Recorder
+  recorder:
+    enabled: true
+    image:
+      repository: grafana/intro-to-mltp
+      tag: mythical-beasts-recorder-latest
+      pullPolicy: IfNotPresent
+    ports:
+      http: 4002
+    resources:
+      requests:
+        memory: "128Mi"
+        cpu: "50m"
+      limits:
+        memory: "256Mi"
+        cpu: "200m"
+    env:
+      namespace: "production"
+      logsTarget: "http://grafana-mltp-stack-loki:3100/loki/api/v1/push"
+      tracingCollectorHost: "grafana-mltp-stack-alloy"
+      tracingCollectorPort: "4317"
+      profileCollectorHost: "grafana-mltp-stack-alloy"
+      profileCollectorPort: "4040"
+      otelExporterOtlpTracesInsecure: "true"
+      otelResourceAttributes: "ip=1.2.3.5"
+
+# Infrastructure components
+infrastructure:
+  # PostgreSQL Database
+  postgresql:
+    enabled: true
+    image:
+      repository: postgres
+      tag: "14.5"
+      pullPolicy: IfNotPresent
+    ports:
+      postgres: 5432
+    auth:
+      postgresPassword: "mythical"
+    persistence:
+      enabled: true
+      size: 1Gi
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "100m"
+      limits:
+        memory: "512Mi"
+        cpu: "500m"
+
+  # RabbitMQ Message Queue
+  rabbitmq:
+    enabled: true
+    image:
+      repository: rabbitmq
+      tag: "management"
+      pullPolicy: IfNotPresent
+    ports:
+      amqp: 5672
+      management: 15672
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "100m"
+      limits:
+        memory: "512Mi"
+        cpu: "500m"
+
+# Observability stack
+observability:
+  # Grafana Alloy (Telemetry Collector)
+  alloy:
+    enabled: true
+    expose: true  # Auto-expose on NodePort 30345
+    image:
+      repository: grafana/alloy
+      tag: "v1.8.1"
+      pullPolicy: IfNotPresent
+    ports:
+      http: 12345
+      alt: 12348
+      jaeger: 6832
+      zipkin: 55679
+      otlp_grpc: 4317
+      otlp_http: 4318
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "100m"
+      limits:
+        memory: "512Mi"
+        cpu: "500m"
+
+  # Grafana Dashboard Server
+  grafana:
+    enabled: true
+    expose: true  # Auto-expose on NodePort 30000
+    image:
+      repository: grafana/grafana
+      tag: "11.6.0"
+      pullPolicy: IfNotPresent
+    ports:
+      http: 3000
+    persistence:
+      enabled: true
+      size: 1Gi
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "100m"
+      limits:
+        memory: "512Mi"
+        cpu: "500m"
+    env:
+      featureToggles: "flameGraph traceqlSearch traceQLStreaming correlations metricsSummary traceqlEditor traceToMetrics traceToProfiles datatrails"
+      installPlugins: "grafana-lokiexplore-app,grafana-exploretraces-app,grafana-pyroscope-app"
+      authAnonymousEnabled: "true"
+      authAnonymousOrgRole: "Admin"
+      authDisableLoginForm: "true"
+
+  # Tempo (Distributed Tracing)
+  tempo:
+    enabled: true
+    expose: true  # Auto-expose on NodePort 30300
+    image:
+      repository: grafana/tempo
+      tag: "2.7.2"
+      pullPolicy: IfNotPresent
+    ports:
+      http: 3200
+      zipkin: 9411
+      otlp_grpc: 4317
+      otlp_http: 4318
+      jaeger: 14250
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "100m"
+      limits:
+        memory: "512Mi"
+        cpu: "500m"
+
+  # Loki (Log Aggregation)
+  loki:
+    enabled: true
+    expose: true  # Auto-expose on NodePort 30100
+    image:
+      repository: grafana/loki
+      tag: "3.4.3"
+      pullPolicy: IfNotPresent
+    ports:
+      http: 3100
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "100m"
+      limits:
+        memory: "512Mi"
+        cpu: "500m"
+
+  # Mimir (Metrics)
+  mimir:
+    enabled: true
+    expose: true  # Auto-expose on NodePort 30200
+    image:
+      repository: grafana/mimir
+      tag: "2.16.0"
+      pullPolicy: IfNotPresent
+    ports:
+      http: 9009
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "200m"
+      limits:
+        memory: "1Gi"
+        cpu: "1000m"
+
+  # Pyroscope (Continuous Profiling)
+  pyroscope:
+    enabled: true
+    expose: true  # Auto-expose on NodePort 30400
+    image:
+      repository: grafana/pyroscope
+      tag: "1.13.1"
+      pullPolicy: IfNotPresent
+    ports:
+      http: 4040
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "100m"
+      limits:
+        memory: "512Mi"
+        cpu: "500m"
+
+# Auto-instrumentation with Beyla
+beyla:
+  enabled: true
+  image:
+    repository: grafana/beyla
+    tag: "2.1.0"
+    pullPolicy: IfNotPresent
+  
+  # Beyla instances for each service
+  services:
+    server:
+      enabled: true
+      openPort: "4000"
+      serviceNamespace: "mythical"
+      prometheusPort: "9090"
+      otelServiceName: "beyla-mythical-server"
+    
+    requester:
+      enabled: true
+      openPort: "4001"
+      serviceNamespace: "mythical"
+      prometheusPort: "9090"
+      otelServiceName: "beyla-mythical-requester"
+    
+    recorder:
+      enabled: true
+      openPort: "4002"
+      serviceNamespace: "mythical"
+      prometheusPort: "9090"
+      otelServiceName: "beyla-mythical-recorder"
+
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "50m"
+    limits:
+      memory: "256Mi"
+      cpu: "200m"
+
+# Load Testing with k6
+k6:
+  enabled: false
+  image:
+    repository: grafana/k6
+    tag: "0.58.0"
+    pullPolicy: IfNotPresent
+  env:
+    prometheusRwServerUrl: "http://mimir:9009/api/v1/push"
+    duration: "3600s"
+    vus: "4"
+    prometheusRwTrendAsNativeHistogram: "true"
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "50m"
+    limits:
+      memory: "256Mi"
+      cpu: "200m"
+
+# Service exposure configuration
+service:
+  type: NodePort  # Change to LoadBalancer for cloud environments
+  annotations: {}
+  # Auto-expose services like Docker Compose
+  autoExpose:
+    enabled: true  # Set to false to disable auto port exposure
+    # Specific port configurations for each service
+    services:
+      grafana:
+        enabled: true
+        nodePort: 30000
+      mythicalServer:
+        enabled: true  
+        nodePort: 30001  # Maps to 4000
+      mythicalRequester:
+        enabled: true
+        nodePort: 30002  # Maps to 4001  
+      mythicalRecorder:
+        enabled: true
+        nodePort: 30003  # Maps to 4002
+      loki:
+        enabled: true
+        nodePort: 30100  # Maps to 3100
+      mimir:
+        enabled: true  
+        nodePort: 30200  # Maps to 9009
+      tempo:
+        enabled: true
+        nodePort: 30300  # Maps to 3200
+      pyroscope:
+        enabled: true
+        nodePort: 30400  # Maps to 4040
+      rabbitmq:
+        enabled: true
+        nodePort: 30500  # Maps to 15672 (management UI)
+        nodePortAmqp: 30501  # Maps to 5672 (AMQP)
+      postgresql:
+        enabled: false  # Usually don't expose DB externally
+        nodePort: 30432  # Maps to 5432
+      alloy:
+        enabled: true
+        nodePort: 30345  # Maps to 12345 (main HTTP port)
+
+# Ingress configuration (optional)
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: grafana-mltp.local
+      paths:
+        - path: /
+          pathType: Prefix
+          service: grafana
+  tls: []
+
+# Security context for containers
+securityContext:
+  runAsNonRoot: false
+  runAsUser: 0
+
+# Pod security context
+podSecurityContext:
+  fsGroup: 0
+
+# Service account
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+# Autoscaling (disabled for single-node setup)
+autoscaling:
+  enabled: false
+
+# Pod disruption budgets (disabled for single-node setup)
+podDisruptionBudget:
+  enabled: false
+
+# Resource quotas and limits
+resourceQuota:
+  enabled: false
+
+# Network policies
+networkPolicy:
+  enabled: false
+
+# Monitoring and alerting
+monitoring:
+  enabled: true
+  serviceMonitor:
+    enabled: false  # Requires Prometheus Operator
+  prometheusRule:
+    enabled: false  # Requires Prometheus Operator
+
+# Configuration overrides
+configOverrides:
+  alloy: ""
+  
+  tempo: ""
+  
+  loki: ""
+  
+  mimir: ""
