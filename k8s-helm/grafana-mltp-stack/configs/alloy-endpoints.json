@@ -1,0 +1,7 @@
+[
+  {
+    "name": "server",
+    "port": 4000,
+    "endpoints": ["unicorn", "manticore", "dragon"]
+  }
+]

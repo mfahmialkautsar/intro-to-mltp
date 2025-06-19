@@ -1,0 +1,79 @@
+# Mimir Configuration for MLTP Stack
+# Metrics storage and querying configuration
+
+# Disable multi-tenancy
+multitenancy_enabled: false
+
+# The server block configures the Mimir server.
+server:
+  # Listen on port 9009 for all incoming requests.
+  http_listen_port: 9009
+  # Log messages at info level.
+  log_level: info
+
+# The block storage configuration determines where the metrics TSDB data is stored.
+blocks_storage:
+  # Use the local filesystem for block storage.
+  backend: filesystem
+  # Directory in which to store synchronised TSDB index headers.
+  bucket_store:
+    sync_dir: /var/mimir/tsdb-sync
+  # Directory in which to store configuration for object storage.
+  filesystem:
+    dir: /var/mimir/data/tsdb
+  # Direction in which to store TSDB WAL data.
+  tsdb:
+    dir: /var/mimir/tsdb
+
+# The compactor block configures the compactor responsible for compacting TSDB blocks.
+compactor:
+  # Directory to temporarily store blocks underdoing compaction.
+  data_dir: /var/mimir/compactor
+  # The sharding ring type used to share the hashed ring for the compactor.
+  sharding_ring:
+    # Use memberlist backend store (the default).
+    kvstore:
+      store: memberlist
+
+# The distributor receives incoming metrics data for the system.
+distributor:
+  # The ring to share hash ring data across instances.
+  ring:
+    # The address advertised in the ring. Localhost.
+    instance_addr: 127.0.0.1
+    # Use memberlist backend store (the default).
+    kvstore:
+      store: memberlist
+
+# The ingester receives data from the distributor and processes it into indices and blocks.
+ingester:
+  # The ring to share hash ring data across instances.
+  ring:
+    # The address advertised in the ring. Localhost.
+    instance_addr: 127.0.0.1
+    # Use memberlist backend store (the default).
+    kvstore:
+      store: memberlist
+    # Only run one instance of the ingesters.
+    replication_factor: 1
+
+# The ruler storage block configures ruler storage settings.
+ruler_storage:
+  # Use the local filesystem for block storage.
+  backend: filesystem
+  filesystem:
+    # The directory in which to store rules.
+    dir: /var/mimir/rules
+
+# The store gateway block configures gateway storage.
+store_gateway:
+  # Configuration for the hash ring.
+  sharding_ring:
+    # Only run a single instance.
+    replication_factor: 1
+
+# Global limits configuration.
+limits:
+  # A maximum of 100000 exemplars in memory at any one time.
+  max_global_exemplars_per_user: 100000
+  ingestion_rate: 30000
