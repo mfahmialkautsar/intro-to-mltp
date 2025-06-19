@@ -1,0 +1,97 @@
+// Telemetry Configuration
+otelcol.receiver.otlp "mythical" {
+    grpc {
+        endpoint = "0.0.0.0:4317"
+    }
+    http {
+        endpoint = "0.0.0.0:4318"
+    }
+    output {
+        metrics = [otelcol.processor.batch.default.input]
+        logs    = [otelcol.processor.batch.default.input]
+        traces  = [otelcol.processor.batch.default.input]
+    }
+}
+
+otelcol.processor.batch "default" {
+    output {
+        metrics = [otelcol.exporter.prometheus.mimir.input]
+        logs    = [otelcol.exporter.loki.loki.input]
+        traces  = [otelcol.exporter.otlp.tempo.input]
+    }
+}
+
+// Metrics Export to Mimir
+otelcol.exporter.prometheus "mimir" {
+    forward_to = [prometheus.remote_write.mimir.receiver]
+}
+
+prometheus.remote_write "mimir" {
+    endpoint {
+        url = "http://__MIMIR_ENDPOINT__/api/v1/push"
+    }
+}
+
+// Logs Export to Loki
+otelcol.exporter.loki "loki" {
+    forward_to = [loki.write.loki.receiver]
+}
+
+loki.write "loki" {
+    endpoint {
+        url = "http://__LOKI_ENDPOINT__/loki/api/v1/push"
+    }
+}
+
+// Traces Export to Tempo
+otelcol.exporter.otlp "tempo" {
+    client {
+        endpoint = "http://__TEMPO_ENDPOINT__"
+        tls {
+            insecure = true
+        }
+    }
+}
+
+// Scrape infrastructure metrics
+prometheus.scrape "infrastructure" {
+    targets = [
+        {"__address__" = "__ALLOY_ENDPOINT__", group = "infrastructure", service = "alloy"},
+        {"__address__" = "__TEMPO_METRICS_ENDPOINT__", group = "infrastructure", service = "tempo"},
+        {"__address__" = "__LOKI_METRICS_ENDPOINT__", group = "infrastructure", service = "loki"},
+        {"__address__" = "__MIMIR_METRICS_ENDPOINT__", group = "infrastructure", service = "mimir"},
+        {"__address__" = "__PYROSCOPE_METRICS_ENDPOINT__", group = "infrastructure", service = "pyroscope"},
+        {"__address__" = "__GRAFANA_METRICS_ENDPOINT__", group = "infrastructure", service = "grafana"},
+    ]
+    scrape_interval = "15s"
+    forward_to = [prometheus.remote_write.mimir.receiver]
+    job_name = "mltpg_infra"
+}
+
+// Scrape mythical application metrics
+prometheus.scrape "mythical" {
+    targets = [
+        {"__address__" = "__MYTHICAL_SERVER_ENDPOINT__", group = "mythical", service = "mythical-server"},
+        {"__address__" = "__MYTHICAL_REQUESTER_ENDPOINT__", group = "mythical", service = "mythical-requester"},
+        {"__address__" = "__MYTHICAL_RECORDER_ENDPOINT__", group = "mythical", service = "mythical-recorder"},
+    ]
+    scrape_interval = "2s"
+    scrape_timeout = "2s"
+    forward_to = [prometheus.remote_write.mimir.receiver]
+    job_name = "mythical"
+}
+
+// Pyroscope receiver for profiling data
+pyroscope.receive_http "mythical" {
+    http {
+        listen_address = "0.0.0.0"
+        listen_port = "4040"
+    }
+    forward_to = [pyroscope.write.mythical.receiver]
+}
+
+pyroscope.write "mythical" {
+    endpoint {
+        url = "http://__PYROSCOPE_ENDPOINT__"
+    }
+}

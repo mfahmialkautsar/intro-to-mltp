@@ -35,23 +35,3 @@ subjects:
     name: {{ include "grafana-mltp-stack.serviceAccountName" . }}
     namespace: {{ .Values.global.namespace | default .Release.Namespace }}
 {{- end }}
-  - apiGroups: ["extensions"]
-    resources: ["deployments", "replicasets"]
-    verbs: ["get", "list", "watch"]
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: {{ include "grafana-mltp-stack.fullname" . }}-beyla
-  labels:
-    {{- include "grafana-mltp-stack.labels" . | nindent 4 }}
-    {{- include "grafana-mltp-stack.componentLabels" "beyla" | nindent 4 }}
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: {{ include "grafana-mltp-stack.fullname" . }}-beyla
-subjects:
-  - kind: ServiceAccount
-    name: {{ include "grafana-mltp-stack.serviceAccountName" . }}
-    namespace: {{ .Values.global.namespace | default .Release.Namespace }}
-{{- end }}
