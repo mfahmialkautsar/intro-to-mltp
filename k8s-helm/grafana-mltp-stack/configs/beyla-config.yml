@@ -1,0 +1,36 @@
+# Beyla Configuration for Mythical Services
+# Auto-instrumentation configuration for Node.js microservices
+
+# Enable Kubernetes metadata collection
+attributes:
+  kubernetes:
+    enable: true
+    cluster_name: "__CLUSTER_NAME__"
+
+# Automatic routes reporting
+routes:
+  unmatched: heuristic
+
+# Service discovery configuration - use open ports method
+discovery:
+  services:
+    - open_ports: "4000-4002"  # Monitor mythical services ports
+    - exe_path: "/usr/local/bin/node"  # Target Node.js processes
+
+# Metrics configuration
+metrics:
+  interval: 5s
+  features: [application, application_span]
+
+# Traces configuration  
+traces:
+  features: [application, application_span]
+
+# OTEL exporter configuration
+otel_exporter_otlp:
+  endpoint: __ALLOY_ENDPOINT__
+  insecure: true
+  timeout: 30s
+  
+# Log level for debugging
+log_level: info
