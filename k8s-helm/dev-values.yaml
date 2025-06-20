@@ -1,0 +1,49 @@
+# Development values for local config file mounting
+# This enables Docker Compose-style volume binding
+
+development:
+  localConfigs:
+    enabled: true
+    basePath: "/Users/mfahmialkautsar/GoProjects/intro-to-mltp"
+    
+    alloy:
+      configPath: "alloy/config.alloy"
+      endpointsPath: "alloy/endpoints.json"
+    tempo:
+      configPath: "tempo/tempo.yaml"
+    loki:
+      configPath: "loki/loki.yaml"
+    mimir:
+      configPath: "mimir/mimir.yaml"
+    beyla:
+      configPath: "beyla/config.yaml"
+    grafana:
+      provisioningPath: "grafana/provisioning"
+      dashboardsPath: "grafana/definitions"
+
+# Enable all services for development
+observability:
+  alloy:
+    enabled: true
+  loki:
+    enabled: true
+  tempo:
+    enabled: true
+  mimir:
+    enabled: true
+  grafana:
+    enabled: true
+
+beyla:
+  enabled: true
+
+microservices:
+  server:
+    enabled: true
+  requester:
+    enabled: true
+  recorder:
+    enabled: true
+
+k6:
+  enabled: true

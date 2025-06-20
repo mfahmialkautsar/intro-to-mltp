@@ -45,9 +45,16 @@ spec:
               containerPort: {{ .Values.observability.tempo.ports.jaeger }}
               protocol: TCP
           volumeMounts:
+            {{- if .Values.development.localConfigs.enabled }}
+            - name: config-volume
+              mountPath: /etc/tempo.yaml
+              subPath: {{ base .Values.development.localConfigs.tempo.configPath }}
+              readOnly: true
+            {{- else }}
             - name: config
               mountPath: /etc/tempo.yaml
               subPath: tempo.yaml
+            {{- end }}
             - name: tempo-data
               mountPath: /var/tempo
           livenessProbe:
@@ -71,9 +78,16 @@ spec:
           resources:
             {{- toYaml .Values.observability.tempo.resources | nindent 12 }}
       volumes:
+        {{- if .Values.development.localConfigs.enabled }}
+        - name: config-volume
+          hostPath:
+            path: {{ .Values.development.localConfigs.basePath }}/{{ .Values.development.localConfigs.tempo.configPath }}
+            type: File
+        {{- else }}
         - name: config
           configMap:
             name: {{ include "grafana-mltp-stack.fullname" . }}-tempo-config
+        {{- end }}
         - name: tempo-data
           emptyDir: {}
       {{- include "grafana-mltp-stack.nodeSelector" . | nindent 6 }}

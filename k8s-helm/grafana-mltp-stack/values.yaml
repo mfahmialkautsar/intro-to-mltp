@@ -419,6 +419,11 @@ monitoring:
   prometheusRule:
     enabled: false  # Requires Prometheus Operator
 
+# Development configuration for local file mounting
+development:
+  localConfigs:
+    enabled: false  # Set to true to enable local config file mounting
+
 # Configuration overrides
 configOverrides:
   alloy: ""

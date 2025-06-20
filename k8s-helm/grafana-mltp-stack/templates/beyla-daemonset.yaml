@@ -37,14 +37,28 @@ spec:
           resources:
             {{- toYaml .Values.beyla.resources | nindent 12 }}
           volumeMounts:
+            {{- if .Values.development.localConfigs.enabled }}
+            - name: config-volume
+              mountPath: /config/beyla-config.yml
+              subPath: {{ base .Values.development.localConfigs.beyla.configPath }}
+              readOnly: true
+            {{- else }}
             - name: config
               mountPath: /config
+            {{- end }}
             - name: var-run-beyla
               mountPath: /var/run/beyla
       volumes:
+        {{- if .Values.development.localConfigs.enabled }}
+        - name: config-volume
+          hostPath:
+            path: {{ .Values.development.localConfigs.basePath }}/{{ .Values.development.localConfigs.beyla.configPath }}
+            type: File
+        {{- else }}
         - name: config
           configMap:
             name: {{ include "grafana-mltp-stack.fullname" . }}-beyla-config
+        {{- end }}
         - name: var-run-beyla
           emptyDir: {}
       {{- include "grafana-mltp-stack.nodeSelector" . | nindent 6 }}
