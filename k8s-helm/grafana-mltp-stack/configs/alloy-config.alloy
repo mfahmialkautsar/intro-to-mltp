@@ -28,7 +28,7 @@ otelcol.exporter.prometheus "mimir" {
 
 prometheus.remote_write "mimir" {
     endpoint {
-        url = "http://__MIMIR_ENDPOINT__/api/v1/push"
+        url = "http://{{ include "grafana-mltp-stack.fullname" . }}-mimir:9009/api/v1/push"
     }
 }
 
@@ -39,14 +39,14 @@ otelcol.exporter.loki "loki" {
 
 loki.write "loki" {
     endpoint {
-        url = "http://__LOKI_ENDPOINT__/loki/api/v1/push"
+        url = "http://{{ include "grafana-mltp-stack.fullname" . }}-loki:3100/loki/api/v1/push"
     }
 }
 
 // Traces Export to Tempo
 otelcol.exporter.otlp "tempo" {
     client {
-        endpoint = "http://__TEMPO_ENDPOINT__"
+        endpoint = "http://{{ include "grafana-mltp-stack.fullname" . }}-tempo:4317"
         tls {
             insecure = true
         }
@@ -56,12 +56,12 @@ otelcol.exporter.otlp "tempo" {
 // Scrape infrastructure metrics
 prometheus.scrape "infrastructure" {
     targets = [
-        {"__address__" = "__ALLOY_ENDPOINT__", group = "infrastructure", service = "alloy"},
-        {"__address__" = "__TEMPO_METRICS_ENDPOINT__", group = "infrastructure", service = "tempo"},
-        {"__address__" = "__LOKI_METRICS_ENDPOINT__", group = "infrastructure", service = "loki"},
-        {"__address__" = "__MIMIR_METRICS_ENDPOINT__", group = "infrastructure", service = "mimir"},
-        {"__address__" = "__PYROSCOPE_METRICS_ENDPOINT__", group = "infrastructure", service = "pyroscope"},
-        {"__address__" = "__GRAFANA_METRICS_ENDPOINT__", group = "infrastructure", service = "grafana"},
+        {"__address__" = "{{ include "grafana-mltp-stack.fullname" . }}-alloy:12345", group = "infrastructure", service = "alloy"},
+        {"__address__" = "{{ include "grafana-mltp-stack.fullname" . }}-tempo:3200", group = "infrastructure", service = "tempo"},
+        {"__address__" = "{{ include "grafana-mltp-stack.fullname" . }}-loki:3100", group = "infrastructure", service = "loki"},
+        {"__address__" = "{{ include "grafana-mltp-stack.fullname" . }}-mimir:9009", group = "infrastructure", service = "mimir"},
+        {"__address__" = "{{ include "grafana-mltp-stack.fullname" . }}-pyroscope:4040", group = "infrastructure", service = "pyroscope"},
+        {"__address__" = "{{ include "grafana-mltp-stack.fullname" . }}-grafana:3000", group = "infrastructure", service = "grafana"},
     ]
     scrape_interval = "15s"
     forward_to = [prometheus.remote_write.mimir.receiver]
@@ -71,9 +71,9 @@ prometheus.scrape "infrastructure" {
 // Scrape mythical application metrics
 prometheus.scrape "mythical" {
     targets = [
-        {"__address__" = "__MYTHICAL_SERVER_ENDPOINT__", group = "mythical", service = "mythical-server"},
-        {"__address__" = "__MYTHICAL_REQUESTER_ENDPOINT__", group = "mythical", service = "mythical-requester"},
-        {"__address__" = "__MYTHICAL_RECORDER_ENDPOINT__", group = "mythical", service = "mythical-recorder"},
+        {"__address__" = "{{ include "grafana-mltp-stack.fullname" . }}-mythical-server:4000", group = "mythical", service = "mythical-server"},
+        {"__address__" = "{{ include "grafana-mltp-stack.fullname" . }}-mythical-requester:4001", group = "mythical", service = "mythical-requester"},
+        {"__address__" = "{{ include "grafana-mltp-stack.fullname" . }}-mythical-recorder:4002", group = "mythical", service = "mythical-recorder"},
     ]
     scrape_interval = "2s"
     scrape_timeout = "2s"
@@ -92,6 +92,6 @@ pyroscope.receive_http "mythical" {
 
 pyroscope.write "mythical" {
     endpoint {
-        url = "http://__PYROSCOPE_ENDPOINT__"
+        url = "http://{{ include "grafana-mltp-stack.fullname" . }}-pyroscope:4040"
     }
 }

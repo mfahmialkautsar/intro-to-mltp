@@ -9,5 +9,9 @@ metadata:
     {{- include "grafana-mltp-stack.componentLabels" "beyla" | nindent 4 }}
 data:
   beyla-config.yml: |
-{{- .Files.Get "configs/beyla-config.yml" | replace "__CLUSTER_NAME__" (.Values.global.clusterName | default "local") | replace "__ALLOY_ENDPOINT__" (printf "http://%s-alloy.%s.svc.cluster.local:4317" (include "grafana-mltp-stack.fullname" .) (.Values.global.namespace | default .Release.Namespace)) | nindent 4 }}
+    {{- if and .Values.configOverrides.beyla (ne .Values.configOverrides.beyla "") }}
+    {{- .Values.configOverrides.beyla | nindent 4 }}
+    {{- else }}
+    {{- tpl (.Files.Get "configs/beyla-config.yml") . | nindent 4 }}
+    {{- end }}
 {{- end }}

@@ -9,6 +9,5 @@ metadata:
     {{- include "grafana-mltp-stack.componentLabels" "grafana" | nindent 4 }}
 data:
   datasources.yaml: |
-    {{- $datasourcesConfig := .Files.Get "configs/grafana-datasources.yaml" }}
-    {{- $datasourcesConfig | replace "__MIMIR_ENDPOINT__" (printf "%s-mimir:9009" (include "grafana-mltp-stack.fullname" .)) | replace "__LOKI_ENDPOINT__" (printf "%s-loki:3100" (include "grafana-mltp-stack.fullname" .)) | replace "__TEMPO_ENDPOINT__" (printf "%s-tempo:3200" (include "grafana-mltp-stack.fullname" .)) | replace "__PYROSCOPE_ENDPOINT__" (printf "%s-pyroscope:4040" (include "grafana-mltp-stack.fullname" .)) | nindent 4 }}
+    {{- tpl (.Files.Get "configs/grafana-datasources.yaml") . | nindent 4 }}
 {{- end }}
