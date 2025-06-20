@@ -2,7 +2,7 @@ import { check, sleep } from 'k6';
 import http from 'k6/http';
 
 // This is the URL we're going to test, in this case the application server.
-const url = "__MYTHICAL_SERVER_URL__";
+const url = "http://{{ include "grafana-mltp-stack.fullname" . }}-mythical-server.{{ .Values.global.namespace }}.svc.cluster.local:{{ .Values.microservices.server.ports.http }}";
 
 // An index of endpoints to use, essentially the paths accepted by the server.
 const beasts = [

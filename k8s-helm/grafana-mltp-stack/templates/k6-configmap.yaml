@@ -9,6 +9,5 @@ metadata:
     app.kubernetes.io/component: k6-script
 data:
   mythical-loadtest.js: |
-    {{- $k6Script := .Files.Get "configs/k6-loadtest.js" }}
-    {{- $k6Script | replace "__MYTHICAL_SERVER_URL__" (printf "http://%s-mythical-server.%s.svc.cluster.local:%d" (include "grafana-mltp-stack.fullname" .) .Values.global.namespace (.Values.microservices.server.ports.http | int)) | nindent 4 }}
+    {{- tpl (.Files.Get "configs/k6-loadtest.js") . | nindent 4 }}
 {{- end }}

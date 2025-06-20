@@ -5,7 +5,7 @@
 attributes:
   kubernetes:
     enable: true
-    cluster_name: "__CLUSTER_NAME__"
+    cluster_name: {{ .Values.global.clusterName | default "local-k8s" | quote }}
 
 # Automatic routes reporting
 routes:
@@ -28,7 +28,7 @@ traces:
 
 # OTEL exporter configuration
 otel_exporter_otlp:
-  endpoint: __ALLOY_ENDPOINT__
+  endpoint: http://{{ include "grafana-mltp-stack.fullname" . }}-alloy.{{ .Values.global.namespace }}.svc.cluster.local:4317
   insecure: true
   timeout: 30s
   
