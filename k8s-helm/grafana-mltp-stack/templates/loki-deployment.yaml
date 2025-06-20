@@ -34,9 +34,16 @@ spec:
               containerPort: {{ .Values.observability.loki.ports.http }}
               protocol: TCP
           volumeMounts:
+            {{- if .Values.development.localConfigs.enabled }}
+            - name: config-volume
+              mountPath: /etc/loki/loki.yaml
+              subPath: {{ base .Values.development.localConfigs.loki.configPath }}
+              readOnly: true
+            {{- else }}
             - name: config
               mountPath: /etc/loki/loki.yaml
               subPath: loki.yaml
+            {{- end }}
             - name: loki-data
               mountPath: /var/loki
           livenessProbe:
@@ -60,9 +67,16 @@ spec:
           resources:
             {{- toYaml .Values.observability.loki.resources | nindent 12 }}
       volumes:
+        {{- if .Values.development.localConfigs.enabled }}
+        - name: config-volume
+          hostPath:
+            path: {{ .Values.development.localConfigs.basePath }}/{{ .Values.development.localConfigs.loki.configPath }}
+            type: File
+        {{- else }}
         - name: config
           configMap:
             name: {{ include "grafana-mltp-stack.fullname" . }}-loki-config
+        {{- end }}
         - name: loki-data
           emptyDir: {}
       {{- include "grafana-mltp-stack.nodeSelector" . | nindent 6 }}
