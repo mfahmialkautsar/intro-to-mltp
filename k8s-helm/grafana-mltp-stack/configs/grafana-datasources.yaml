@@ -4,7 +4,7 @@ datasources:
     type: prometheus
     uid: mimir
     access: proxy
-    url: http://__MIMIR_ENDPOINT__/prometheus
+    url: http://{{ include "grafana-mltp-stack.fullname" . }}-mimir:9009/prometheus
     isDefault: true
     editable: true
     jsonData:
@@ -25,7 +25,7 @@ datasources:
     type: loki
     uid: loki
     access: proxy
-    url: http://__LOKI_ENDPOINT__
+    url: http://{{ include "grafana-mltp-stack.fullname" . }}-loki:3100
     editable: true
     jsonData:
       maxLines: 1000
@@ -39,7 +39,7 @@ datasources:
     type: tempo
     uid: tempo
     access: proxy
-    url: http://__TEMPO_ENDPOINT__
+    url: http://{{ include "grafana-mltp-stack.fullname" . }}-tempo:3200
     editable: true
     jsonData:
       httpMethod: GET
@@ -75,7 +75,7 @@ datasources:
     type: pyroscope
     uid: pyroscope
     access: proxy
-    url: http://__PYROSCOPE_ENDPOINT__
+    url: http://{{ include "grafana-mltp-stack.fullname" . }}-pyroscope:4040
     editable: true
     jsonData:
       minStep: '15s'

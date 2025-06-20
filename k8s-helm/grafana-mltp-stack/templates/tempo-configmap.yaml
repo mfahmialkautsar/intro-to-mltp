@@ -12,6 +12,6 @@ data:
     {{- if and .Values.configOverrides.tempo (ne .Values.configOverrides.tempo "") }}
     {{- .Values.configOverrides.tempo | nindent 4 }}
     {{- else }}
-{{- .Files.Get "configs/tempo-config.yaml" | replace "__MIMIR_ENDPOINT__" (printf "http://%s-mimir:9009/api/v1/push" (include "grafana-mltp-stack.fullname" .)) | nindent 4 }}
+    {{- tpl (.Files.Get "configs/tempo-config.yaml") . | nindent 4 }}
     {{- end }}
 {{- end }}

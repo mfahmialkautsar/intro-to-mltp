@@ -12,8 +12,7 @@ data:
     {{- if and .Values.configOverrides.alloy (ne .Values.configOverrides.alloy "") }}
     {{- .Values.configOverrides.alloy | nindent 4 }}
     {{- else }}
-    {{- $alloyConfig := .Files.Get "configs/alloy-config.alloy" }}
-    {{- $alloyConfig | replace "__MIMIR_ENDPOINT__" (printf "%s-mimir:9009" (include "grafana-mltp-stack.fullname" .)) | replace "__LOKI_ENDPOINT__" (printf "%s-loki:3100" (include "grafana-mltp-stack.fullname" .)) | replace "__TEMPO_ENDPOINT__" (printf "%s-tempo:4317" (include "grafana-mltp-stack.fullname" .)) | replace "__ALLOY_ENDPOINT__" (printf "%s-alloy:12345" (include "grafana-mltp-stack.fullname" .)) | replace "__TEMPO_METRICS_ENDPOINT__" (printf "%s-tempo:3200" (include "grafana-mltp-stack.fullname" .)) | replace "__LOKI_METRICS_ENDPOINT__" (printf "%s-loki:3100" (include "grafana-mltp-stack.fullname" .)) | replace "__MIMIR_METRICS_ENDPOINT__" (printf "%s-mimir:9009" (include "grafana-mltp-stack.fullname" .)) | replace "__PYROSCOPE_METRICS_ENDPOINT__" (printf "%s-pyroscope:4040" (include "grafana-mltp-stack.fullname" .)) | replace "__GRAFANA_METRICS_ENDPOINT__" (printf "%s-grafana:3000" (include "grafana-mltp-stack.fullname" .)) | replace "__MYTHICAL_SERVER_ENDPOINT__" (printf "%s-mythical-server:4000" (include "grafana-mltp-stack.fullname" .)) | replace "__MYTHICAL_REQUESTER_ENDPOINT__" (printf "%s-mythical-requester:4001" (include "grafana-mltp-stack.fullname" .)) | replace "__MYTHICAL_RECORDER_ENDPOINT__" (printf "%s-mythical-recorder:4002" (include "grafana-mltp-stack.fullname" .)) | replace "__PYROSCOPE_ENDPOINT__" (printf "%s-pyroscope:4040" (include "grafana-mltp-stack.fullname" .)) | nindent 4 }}
+    {{- tpl (.Files.Get "configs/alloy-config.alloy") . | nindent 4 }}
     {{- end }}
 ---
 apiVersion: v1
