@@ -1,0 +1,19 @@
+{{- if .Values.observability.grafana.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "grafana-mltp-stack.fullname" . }}-grafana-dashboards
+  namespace: {{ .Values.global.namespace | default .Release.Namespace }}
+  labels:
+    {{- include "grafana-mltp-stack.labels" . | nindent 4 }}
+    {{- include "grafana-mltp-stack.componentLabels" "grafana" | nindent 4 }}
+data:
+  k6.json: |
+    {{- .Files.Get "configs/grafana-dashboards/k6.json" | nindent 4 }}
+  mlt.json: |
+    {{- .Files.Get "configs/grafana-dashboards/mlt.json" | nindent 4 }}
+  mlt-erroring-endpoints.json: |
+    {{- .Files.Get "configs/grafana-dashboards/mlt-erroring-endpoints.json" | nindent 4 }}
+  traces-in-dashboards.json: |
+    {{- .Files.Get "configs/grafana-dashboards/traces-in-dashboards.json" | nindent 4 }}
+{{- end }}

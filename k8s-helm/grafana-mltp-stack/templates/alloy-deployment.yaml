@@ -51,8 +51,19 @@ spec:
               containerPort: {{ .Values.observability.alloy.ports.otlp_http }}
               protocol: TCP
           volumeMounts:
+            {{- if .Values.development.localConfigs.enabled }}
+            - name: config-volume
+              mountPath: /etc/alloy/config.alloy
+              subPath: {{ .Values.development.localConfigs.alloy.configPath }}
+              readOnly: true
+            - name: endpoints-volume
+              mountPath: /etc/alloy/endpoints.json
+              subPath: {{ .Values.development.localConfigs.alloy.endpointsPath }}
+              readOnly: true
+            {{- else }}
             - name: config
               mountPath: /etc/alloy
+            {{- end }}
           livenessProbe:
             httpGet:
               path: /-/healthy
@@ -74,9 +85,20 @@ spec:
           resources:
             {{- toYaml .Values.observability.alloy.resources | nindent 12 }}
       volumes:
+        {{- if .Values.development.localConfigs.enabled }}
+        - name: config-volume
+          hostPath:
+            path: {{ .Values.development.localConfigs.basePath }}/{{ .Values.development.localConfigs.alloy.configPath }}
+            type: File
+        - name: endpoints-volume
+          hostPath:
+            path: {{ .Values.development.localConfigs.basePath }}/{{ .Values.development.localConfigs.alloy.endpointsPath }}
+            type: File
+        {{- else }}
         - name: config
           configMap:
             name: {{ include "grafana-mltp-stack.fullname" . }}-alloy-config
+        {{- end }}
       {{- include "grafana-mltp-stack.nodeSelector" . | nindent 6 }}
       {{- include "grafana-mltp-stack.affinity" . | nindent 6 }}
       {{- include "grafana-mltp-stack.tolerations" . | nindent 6 }}
