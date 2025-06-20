@@ -28,7 +28,7 @@ services:
 
   # A RabbitMQ queue used to send message between the requester and the server microservices.
   mythical-queue:
-    image: rabbitmq:management
+    image: rabbitmq:management-alpine
     restart: unless-stopped
     ports:
       - "5672:5672"
@@ -41,7 +41,7 @@ services:
 
   # A postgres DB used to store data by the API server microservice.
   mythical-database:
-    image: postgres:14.5
+    image: postgres:14.5-alpine
     restart: unless-stopped
     environment:
       POSTGRES_PASSWORD: "mythical"
