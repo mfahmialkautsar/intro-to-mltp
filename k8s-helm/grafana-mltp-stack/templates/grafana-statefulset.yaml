@@ -1,6 +1,6 @@
 {{- if .Values.observability.grafana.enabled }}
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: {{ include "grafana-mltp-stack.fullname" . }}-grafana
   namespace: {{ .Values.global.namespace | default .Release.Namespace }}
@@ -9,6 +9,7 @@ metadata:
     {{- include "grafana-mltp-stack.componentLabels" "grafana" | nindent 4 }}
 spec:
   replicas: 1
+  serviceName: {{ include "grafana-mltp-stack.fullname" . }}-grafana
   selector:
     matchLabels:
       {{- include "grafana-mltp-stack.componentSelectorLabels" (list . "grafana") | nindent 6 }}
