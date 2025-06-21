@@ -1,0 +1,16 @@
+{{- if .Values.observability.grafana.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "grafana-mltp-stack.fullname" . }}-grafana-env
+  namespace: {{ .Values.global.namespace | default .Release.Namespace }}
+  labels:
+    {{- include "grafana-mltp-stack.labels" . | nindent 4 }}
+data:
+  # Grafana environment variables (non-sensitive)
+  GF_FEATURE_TOGGLES_ENABLE: {{ .Values.observability.grafana.env.featureToggles | quote }}
+  GF_INSTALL_PLUGINS: {{ .Values.observability.grafana.env.installPlugins | quote }}
+  GF_AUTH_ANONYMOUS_ENABLED: {{ .Values.observability.grafana.env.authAnonymousEnabled | quote }}
+  GF_AUTH_ANONYMOUS_ORG_ROLE: {{ .Values.observability.grafana.env.authAnonymousOrgRole | quote }}
+  GF_AUTH_DISABLE_LOGIN_FORM: {{ .Values.observability.grafana.env.authDisableLoginForm | quote }}
+{{- end }}

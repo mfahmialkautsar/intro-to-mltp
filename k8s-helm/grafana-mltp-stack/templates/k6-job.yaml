@@ -47,15 +47,14 @@ spec:
             - "--out"
             - "experimental-prometheus-rw"
             - "--duration"
-            - {{ .Values.k6.env.duration | quote }}
+            - "$(K6_DURATION)"
             - "--vus"
-            - {{ .Values.k6.env.vus | quote }}
+            - "$(K6_VUS)"
             - "/scripts/mythical-loadtest.js"
-          env:
-            - name: K6_PROMETHEUS_RW_SERVER_URL
-              value: "http://{{ include "grafana-mltp-stack.fullname" . }}-mimir.{{ .Values.global.namespace }}.svc.cluster.local:9009/api/v1/push"
-            - name: K6_PROMETHEUS_RW_TREND_AS_NATIVE_HISTOGRAM
-              value: {{ .Values.k6.env.prometheusRwTrendAsNativeHistogram | quote }}
+          envFrom:
+            # Load environment variables from ConfigMap
+            - configMapRef:
+                name: {{ include "grafana-mltp-stack.fullname" . }}-k6-env
           resources:
             {{- toYaml .Values.k6.resources | nindent 12 }}
           volumeMounts:

@@ -1,0 +1,37 @@
+{{- if .Values.microservices.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "grafana-mltp-stack.fullname" . }}-microservices-env
+  namespace: {{ .Values.global.namespace | default .Release.Namespace }}
+  labels:
+    {{- include "grafana-mltp-stack.labels" . | nindent 4 }}
+data:
+  # Common microservices environment variables (non-sensitive)
+  NAMESPACE: {{ .Values.microservices.server.env.namespace | quote }}
+  LOGS_TARGET: "http://{{ include "grafana-mltp-stack.fullname" . }}-loki:3100/loki/api/v1/push"
+  TRACING_COLLECTOR_HOST: {{ include "grafana-mltp-stack.fullname" . }}-alloy
+  TRACING_COLLECTOR_PORT: {{ .Values.microservices.server.env.tracingCollectorPort | quote }}
+  PROFILE_COLLECTOR_HOST: {{ include "grafana-mltp-stack.fullname" . }}-alloy
+  PROFILE_COLLECTOR_PORT: {{ .Values.microservices.server.env.profileCollectorPort | quote }}
+  OTEL_EXPORTER_OTLP_TRACES_INSECURE: {{ .Values.microservices.server.env.otelExporterOtlpTracesInsecure | quote }}
+  
+  # Database connection
+  MYTHICAL_DATABASE_HOST: {{ include "grafana-mltp-stack.fullname" . }}-postgresql
+  MYTHICAL_DATABASE_HOST_PORT: "5432"
+  MYTHICAL_DATABASE_USER: "postgres"
+  POSTGRES_HOST: "{{ include "grafana-mltp-stack.fullname" . }}-postgresql.{{ .Values.global.namespace }}.svc.cluster.local"
+  POSTGRES_PORT: {{ .Values.infrastructure.postgresql.ports.postgres | quote }}
+  POSTGRES_DB: "mythical"
+  POSTGRES_USER: "postgres"
+  
+  # Queue/RabbitMQ connection
+  MYTHICAL_QUEUE_HOST: mythical-queue
+  MYTHICAL_QUEUE_PORT: "5672"
+  RABBITMQ_HOST: "mythical-queue.{{ .Values.global.namespace }}.svc.cluster.local"
+  RABBITMQ_PORT: {{ .Values.infrastructure.rabbitmq.ports.amqp | quote }}
+  RABBITMQ_USER: "guest"
+  
+  # Service-to-service communication
+  MYTHICAL_BEASTS_SERVER: "http://{{ include "grafana-mltp-stack.fullname" . }}-mythical-server.{{ .Values.global.namespace }}.svc.cluster.local:{{ .Values.microservices.server.ports.http }}"
+{{- end }}

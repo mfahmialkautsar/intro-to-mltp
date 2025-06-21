@@ -44,21 +44,15 @@ spec:
             - name: alt
               containerPort: {{ .Values.microservices.server.ports.alt }}
               protocol: TCP
+          envFrom:
+            # Load non-sensitive environment variables from ConfigMap
+            - configMapRef:
+                name: {{ include "grafana-mltp-stack.fullname" . }}-microservices-env
+            # Load sensitive environment variables from Secret
+            - secretRef:
+                name: {{ include "grafana-mltp-stack.fullname" . }}-postgresql-secret
           env:
-            - name: NAMESPACE
-              value: {{ .Values.microservices.server.env.namespace | quote }}
-            - name: LOGS_TARGET
-              value: "http://{{ include "grafana-mltp-stack.fullname" . }}-loki:3100/loki/api/v1/push"
-            - name: TRACING_COLLECTOR_HOST
-              value: {{ include "grafana-mltp-stack.fullname" . }}-alloy
-            - name: TRACING_COLLECTOR_PORT
-              value: {{ .Values.microservices.server.env.tracingCollectorPort | quote }}
-            - name: PROFILE_COLLECTOR_HOST
-              value: {{ include "grafana-mltp-stack.fullname" . }}-alloy
-            - name: PROFILE_COLLECTOR_PORT
-              value: {{ .Values.microservices.server.env.profileCollectorPort | quote }}
-            - name: OTEL_EXPORTER_OTLP_TRACES_INSECURE
-              value: {{ .Values.microservices.server.env.otelExporterOtlpTracesInsecure | quote }}
+            # Special environment variables that need dynamic values
             - name: POD_IP
               valueFrom:
                 fieldRef:
@@ -66,18 +60,6 @@ spec:
                   fieldPath: status.podIP
             - name: OTEL_RESOURCE_ATTRIBUTES
               value: "ip=$(POD_IP)"
-            - name: MYTHICAL_DATABASE_HOST
-              value: {{ include "grafana-mltp-stack.fullname" . }}-postgresql
-            - name: MYTHICAL_DATABASE_HOST_PORT
-              value: "5432"
-            - name: MYTHICAL_DATABASE_USER
-              value: "postgres"
-            - name: MYTHICAL_DATABASE_PASSWORD
-              value: "mythical"
-            - name: MYTHICAL_QUEUE_HOST
-              value: mythical-queue
-            - name: MYTHICAL_QUEUE_PORT
-              value: "5672"
           livenessProbe:
             httpGet:
               path: /metrics

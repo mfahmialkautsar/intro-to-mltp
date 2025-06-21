@@ -1,0 +1,15 @@
+{{- if .Values.k6.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "grafana-mltp-stack.fullname" . }}-k6-env
+  namespace: {{ .Values.global.namespace | default .Release.Namespace }}
+  labels:
+    {{- include "grafana-mltp-stack.labels" . | nindent 4 }}
+data:
+  # K6 load testing environment variables
+  K6_PROMETHEUS_RW_SERVER_URL: "http://{{ include "grafana-mltp-stack.fullname" . }}-mimir.{{ .Values.global.namespace }}.svc.cluster.local:9009/api/v1/push"
+  K6_PROMETHEUS_RW_TREND_AS_NATIVE_HISTOGRAM: {{ .Values.k6.env.prometheusRwTrendAsNativeHistogram | quote }}
+  K6_DURATION: {{ .Values.k6.env.duration | quote }}
+  K6_VUS: {{ .Values.k6.env.vus | quote }}
+{{- end }}
