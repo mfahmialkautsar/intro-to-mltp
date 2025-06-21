@@ -27,13 +27,10 @@ spec:
           securityContext:
             privileged: true  # Required for eBPF
             readOnlyRootFilesystem: true
-          env:
-            - name: BEYLA_CONFIG_PATH
-              value: "/config/beyla-config.yml"
-            - name: OTEL_EXPORTER_OTLP_ENDPOINT
-              value: "http://{{ include "grafana-mltp-stack.fullname" . }}-alloy.{{ .Values.global.namespace }}.svc.cluster.local:4317"
-            - name: OTEL_EXPORTER_OTLP_INSECURE
-              value: "true"
+          envFrom:
+            # Load non-sensitive environment variables from ConfigMap
+            - configMapRef:
+                name: {{ include "grafana-mltp-stack.fullname" . }}-beyla-env
           resources:
             {{- toYaml .Values.beyla.resources | nindent 12 }}
           volumeMounts:
