@@ -32,9 +32,11 @@ spec:
             - name: postgres
               containerPort: {{ .Values.infrastructure.postgresql.ports.postgres }}
               protocol: TCP
+          envFrom:
+            # Load sensitive environment variables from Secret
+            - secretRef:
+                name: {{ include "grafana-mltp-stack.fullname" . }}-postgresql-secret
           env:
-            - name: POSTGRES_PASSWORD
-              value: {{ .Values.infrastructure.postgresql.auth.postgresPassword | quote }}
             - name: PGDATA
               value: /var/lib/postgresql/data/pgdata
           volumeMounts:

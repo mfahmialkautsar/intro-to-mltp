@@ -1,0 +1,14 @@
+{{- if .Values.beyla.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "grafana-mltp-stack.fullname" . }}-beyla-env
+  namespace: {{ .Values.global.namespace | default .Release.Namespace }}
+  labels:
+    {{- include "grafana-mltp-stack.labels" . | nindent 4 }}
+data:
+  # Beyla environment variables (non-sensitive)
+  BEYLA_CONFIG_PATH: "/config/beyla-config.yml"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://{{ include "grafana-mltp-stack.fullname" . }}-alloy.{{ .Values.global.namespace }}.svc.cluster.local:4317"
+  OTEL_EXPORTER_OTLP_INSECURE: "true"
+{{- end }}

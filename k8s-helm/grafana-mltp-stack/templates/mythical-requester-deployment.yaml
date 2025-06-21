@@ -56,29 +56,22 @@ spec:
             - name: http
               containerPort: {{ .Values.microservices.requester.ports.http }}
               protocol: TCP
+          envFrom:
+            # Load non-sensitive environment variables from ConfigMap
+            - configMapRef:
+                name: {{ include "grafana-mltp-stack.fullname" . }}-microservices-env
+            # Load sensitive environment variables from Secrets
+            - secretRef:
+                name: {{ include "grafana-mltp-stack.fullname" . }}-rabbitmq-secret
           env:
-            - name: NAMESPACE
-              value: {{ .Values.microservices.requester.env.namespace | quote }}
-            - name: LOGS_TARGET
-              value: {{ .Values.microservices.requester.env.logsTarget | quote }}
-            - name: TRACING_COLLECTOR_HOST
-              value: {{ include "grafana-mltp-stack.fullname" . }}-alloy.{{ .Values.global.namespace }}.svc.cluster.local
-            - name: TRACING_COLLECTOR_PORT
-              value: {{ .Values.microservices.requester.env.tracingCollectorPort | quote }}
-            - name: PROFILE_COLLECTOR_HOST
-              value: {{ include "grafana-mltp-stack.fullname" . }}-alloy.{{ .Values.global.namespace }}.svc.cluster.local
-            - name: PROFILE_COLLECTOR_PORT
-              value: {{ .Values.microservices.requester.env.profileCollectorPort | quote }}
-            - name: OTEL_EXPORTER_OTLP_TRACES_INSECURE
-              value: {{ .Values.microservices.requester.env.otelExporterOtlpTracesInsecure | quote }}
+            # Special environment variables that need dynamic values
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: status.podIP
             - name: OTEL_RESOURCE_ATTRIBUTES
-              value: {{ .Values.microservices.requester.env.otelResourceAttributes | quote }}
-            - name: MYTHICAL_BEASTS_SERVER
-              value: "http://{{ include "grafana-mltp-stack.fullname" . }}-mythical-server.{{ .Values.global.namespace }}.svc.cluster.local:{{ .Values.microservices.server.ports.http }}"
-            - name: RABBITMQ_HOST
-              value: mythical-queue.{{ .Values.global.namespace }}.svc.cluster.local
-            - name: RABBITMQ_PORT
-              value: {{ .Values.infrastructure.rabbitmq.ports.amqp | quote }}
+              value: "ip=$(POD_IP)"
           livenessProbe:
             httpGet:
               path: /metrics

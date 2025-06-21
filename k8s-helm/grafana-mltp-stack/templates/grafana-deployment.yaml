@@ -30,17 +30,10 @@ spec:
             - name: http
               containerPort: {{ .Values.observability.grafana.ports.http }}
               protocol: TCP
-          env:
-            - name: GF_FEATURE_TOGGLES_ENABLE
-              value: {{ .Values.observability.grafana.env.featureToggles | quote }}
-            - name: GF_INSTALL_PLUGINS
-              value: {{ .Values.observability.grafana.env.installPlugins | quote }}
-            - name: GF_AUTH_ANONYMOUS_ENABLED
-              value: {{ .Values.observability.grafana.env.authAnonymousEnabled | quote }}
-            - name: GF_AUTH_ANONYMOUS_ORG_ROLE
-              value: {{ .Values.observability.grafana.env.authAnonymousOrgRole | quote }}
-            - name: GF_AUTH_DISABLE_LOGIN_FORM
-              value: {{ .Values.observability.grafana.env.authDisableLoginForm | quote }}
+          envFrom:
+            # Load non-sensitive environment variables from ConfigMap
+            - configMapRef:
+                name: {{ include "grafana-mltp-stack.fullname" . }}-grafana-env
           volumeMounts:
             - name: grafana-storage
               mountPath: /var/lib/grafana
