@@ -202,6 +202,8 @@ observability:
       otlp_grpc: 4317
       otlp_http: 4318
       jaeger: 14250
+    persistence:
+      size: 1Gi
     resources:
       requests:
         memory: "256Mi"
@@ -220,6 +222,8 @@ observability:
       pullPolicy: IfNotPresent
     ports:
       http: 3100
+    persistence:
+      size: 1Gi
     resources:
       requests:
         memory: "256Mi"
@@ -238,6 +242,8 @@ observability:
       pullPolicy: IfNotPresent
     ports:
       http: 9009
+    persistence:
+      size: 1Gi
     resources:
       requests:
         memory: "512Mi"
