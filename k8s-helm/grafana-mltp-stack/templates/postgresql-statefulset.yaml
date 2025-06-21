@@ -1,6 +1,6 @@
 {{- if .Values.infrastructure.postgresql.enabled }}
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: {{ include "grafana-mltp-stack.fullname" . }}-postgresql
   namespace: {{ .Values.global.namespace | default .Release.Namespace }}
@@ -9,8 +9,7 @@ metadata:
     {{- include "grafana-mltp-stack.componentLabels" "postgresql" | nindent 4 }}
 spec:
   replicas: 1
-  strategy:
-    type: Recreate
+  serviceName: {{ include "grafana-mltp-stack.fullname" . }}-postgresql
   selector:
     matchLabels:
       {{- include "grafana-mltp-stack.componentSelectorLabels" (list . "postgresql") | nindent 6 }}

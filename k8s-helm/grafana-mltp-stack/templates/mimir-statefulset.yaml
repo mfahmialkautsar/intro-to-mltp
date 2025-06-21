@@ -1,56 +1,57 @@
-{{- if .Values.observability.loki.enabled }}
+{{- if .Values.observability.mimir.enabled }}
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
-  name: {{ include "grafana-mltp-stack.fullname" . }}-loki
+  name: {{ include "grafana-mltp-stack.fullname" . }}-mimir
   namespace: {{ .Values.global.namespace | default .Release.Namespace }}
   labels:
     {{- include "grafana-mltp-stack.labels" . | nindent 4 }}
-    {{- include "grafana-mltp-stack.componentLabels" "loki" | nindent 4 }}
+    {{- include "grafana-mltp-stack.componentLabels" "mimir" | nindent 4 }}
 spec:
   replicas: 1
+  serviceName: {{ include "grafana-mltp-stack.fullname" . }}-mimir
   selector:
     matchLabels:
-      {{- include "grafana-mltp-stack.componentSelectorLabels" (list . "loki") | nindent 6 }}
+      {{- include "grafana-mltp-stack.componentSelectorLabels" (list . "mimir") | nindent 6 }}
   template:
     metadata:
       labels:
         {{- include "grafana-mltp-stack.labels" . | nindent 8 }}
-        {{- include "grafana-mltp-stack.componentLabels" "loki" | nindent 8 }}
+        {{- include "grafana-mltp-stack.componentLabels" "mimir" | nindent 8 }}
     spec:
       {{- include "grafana-mltp-stack.imagePullSecrets" . | nindent 6 }}
       serviceAccountName: {{ include "grafana-mltp-stack.serviceAccountName" . }}
       {{- include "grafana-mltp-stack.podSecurityContext" . | nindent 6 }}
       containers:
-        - name: loki
+        - name: mimir
           {{- include "grafana-mltp-stack.securityContext" . | nindent 10 }}
-          image: "{{ .Values.observability.loki.image.repository }}:{{ .Values.observability.loki.image.tag }}"
-          imagePullPolicy: {{ .Values.observability.loki.image.pullPolicy }}
+          image: "{{ .Values.observability.mimir.image.repository }}:{{ .Values.observability.mimir.image.tag }}"
+          imagePullPolicy: {{ .Values.observability.mimir.image.pullPolicy }}
           args:
-            - --pattern-ingester.enabled=true
-            - -config.file=/etc/loki/loki.yaml
+            - -ingester.native-histograms-ingestion-enabled=true
+            - -config.file=/etc/mimir.yaml
           ports:
             - name: http
-              containerPort: {{ .Values.observability.loki.ports.http }}
+              containerPort: {{ .Values.observability.mimir.ports.http }}
               protocol: TCP
           volumeMounts:
             {{- if .Values.development.localConfigs.enabled }}
             - name: config-volume
-              mountPath: /etc/loki/loki.yaml
-              subPath: {{ base .Values.development.localConfigs.loki.configPath }}
+              mountPath: /etc/mimir.yaml
+              subPath: {{ base .Values.development.localConfigs.mimir.configPath }}
               readOnly: true
             {{- else }}
             - name: config
-              mountPath: /etc/loki/loki.yaml
-              subPath: loki.yaml
+              mountPath: /etc/mimir.yaml
+              subPath: mimir.yaml
             {{- end }}
-            - name: loki-data
-              mountPath: /var/loki
+            - name: mimir-data
+              mountPath: /var/mimir
           livenessProbe:
             httpGet:
               path: /ready
               port: http
-            initialDelaySeconds: 30
+            initialDelaySeconds: 45
             periodSeconds: 30
             timeoutSeconds: 5
             successThreshold: 1
@@ -59,27 +60,38 @@ spec:
             httpGet:
               path: /ready
               port: http
-            initialDelaySeconds: 10
+            initialDelaySeconds: 15
             periodSeconds: 10
             timeoutSeconds: 5
             successThreshold: 1
             failureThreshold: 3
           resources:
-            {{- toYaml .Values.observability.loki.resources | nindent 12 }}
+            {{- toYaml .Values.observability.mimir.resources | nindent 12 }}
       volumes:
         {{- if .Values.development.localConfigs.enabled }}
         - name: config-volume
           hostPath:
-            path: {{ .Values.development.localConfigs.basePath }}/{{ .Values.development.localConfigs.loki.configPath }}
+            path: {{ .Values.development.localConfigs.basePath }}/{{ .Values.development.localConfigs.mimir.configPath }}
             type: File
         {{- else }}
         - name: config
           configMap:
-            name: {{ include "grafana-mltp-stack.fullname" . }}-loki-config
+            name: {{ include "grafana-mltp-stack.fullname" . }}-mimir-config
         {{- end }}
-        - name: loki-data
+        - name: mimir-data
           emptyDir: {}
       {{- include "grafana-mltp-stack.nodeSelector" . | nindent 6 }}
       {{- include "grafana-mltp-stack.affinity" . | nindent 6 }}
       {{- include "grafana-mltp-stack.tolerations" . | nindent 6 }}
+  volumeClaimTemplates:
+    - metadata:
+        name: mimir-data
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        {{- if .Values.global.storageClass }}
+        storageClassName: {{ .Values.global.storageClass }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.observability.mimir.persistence.size | default "1Gi" }}
 {{- end }}
