@@ -3,7 +3,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ include "grafana-mltp-stack.fullname" . }}-mythical-requester
-  namespace: {{ .Values.global.namespace }}
+  namespace: {{ .Values.global.namespace | default .Release.Namespace }}
   labels:
     {{- include "grafana-mltp-stack.labels" . | nindent 4 }}
     app.kubernetes.io/component: mythical-requester
