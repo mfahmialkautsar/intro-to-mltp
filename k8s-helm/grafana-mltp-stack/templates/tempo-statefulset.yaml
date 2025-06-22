@@ -10,6 +10,11 @@ metadata:
 spec:
   replicas: 1
   serviceName: {{ include "grafana-mltp-stack.fullname" . }}-tempo
+  # Pod management policy for StatefulSet
+  podManagementPolicy: OrderedReady
+  # Update strategy for StatefulSet
+  updateStrategy:
+    type: RollingUpdate
   selector:
     matchLabels:
       {{- include "grafana-mltp-stack.componentSelectorLabels" (list . "tempo") | nindent 6 }}

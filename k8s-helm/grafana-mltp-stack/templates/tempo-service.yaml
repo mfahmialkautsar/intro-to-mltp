@@ -9,6 +9,10 @@ metadata:
     {{- include "grafana-mltp-stack.componentLabels" "tempo" | nindent 4 }}
 spec:
   type: {{ if and .Values.service.autoExpose.enabled .Values.service.autoExpose.services.tempo.enabled }}{{ .Values.service.type }}{{ else }}ClusterIP{{ end }}
+  {{- if not (and .Values.service.autoExpose.enabled .Values.service.autoExpose.services.tempo.enabled) }}
+  # Headless service for StatefulSet - enables direct pod addressing
+  clusterIP: None
+  {{- end }}
   ports:
     - port: {{ .Values.observability.tempo.ports.http }}
       targetPort: http
