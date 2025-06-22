@@ -9,6 +9,10 @@ metadata:
     {{- include "grafana-mltp-stack.componentLabels" "grafana" | nindent 4 }}
 spec:
   type: {{ if and .Values.service.autoExpose.enabled .Values.service.autoExpose.services.grafana.enabled }}{{ .Values.service.type }}{{ else }}ClusterIP{{ end }}
+  {{- if not (and .Values.service.autoExpose.enabled .Values.service.autoExpose.services.grafana.enabled) }}
+  # Headless service for StatefulSet - enables direct pod addressing
+  clusterIP: None
+  {{- end }}
   ports:
     - port: {{ .Values.observability.grafana.ports.http }}
       targetPort: http

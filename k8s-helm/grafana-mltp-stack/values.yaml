@@ -128,6 +128,9 @@ infrastructure:
     ports:
       amqp: 5672
       management: 15672
+    persistence:
+      enabled: true
+      size: 1Gi
     resources:
       requests:
         memory: "256Mi"
