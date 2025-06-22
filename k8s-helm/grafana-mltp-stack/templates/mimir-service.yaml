@@ -9,6 +9,10 @@ metadata:
     {{- include "grafana-mltp-stack.componentLabels" "mimir" | nindent 4 }}
 spec:
   type: {{ if and .Values.service.autoExpose.enabled .Values.service.autoExpose.services.mimir.enabled }}{{ .Values.service.type }}{{ else }}ClusterIP{{ end }}
+  {{- if not (and .Values.service.autoExpose.enabled .Values.service.autoExpose.services.mimir.enabled) }}
+  # Headless service for StatefulSet - enables direct pod addressing
+  clusterIP: None
+  {{- end }}
   ports:
     - port: {{ .Values.observability.mimir.ports.http }}
       targetPort: http
