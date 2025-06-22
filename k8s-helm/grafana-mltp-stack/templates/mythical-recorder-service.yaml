@@ -3,7 +3,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: {{ include "grafana-mltp-stack.fullname" . }}-mythical-recorder
-  namespace: {{ .Values.global.namespace }}
+  namespace: {{ .Values.global.namespace | default .Release.Namespace }}
   labels:
     {{- include "grafana-mltp-stack.labels" . | nindent 4 }}
     app.kubernetes.io/component: mythical-recorder

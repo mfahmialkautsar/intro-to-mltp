@@ -1,10 +1,12 @@
+{{- if ne .Values.global.namespace .Release.Namespace }}
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: {{ .Values.global.namespace | default .Release.Namespace }}
+  name: {{ .Values.global.namespace }}
   labels:
     {{- include "grafana-mltp-stack.labels" . | nindent 4 }}
-    name: {{ .Values.global.namespace | default .Release.Namespace }}
+    name: {{ .Values.global.namespace }}
   annotations:
     helm.sh/hook: pre-install
     helm.sh/hook-weight: "-10"
+{{- end }}
