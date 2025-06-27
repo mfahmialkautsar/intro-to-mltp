@@ -35,8 +35,15 @@ spec:
       containers:
         - name: mythical-server
           {{- include "grafana-mltp-stack.securityContext" . | nindent 10 }}
+          {{- if .Values.development.mode }}
+          # Development mode: use local built images
+          image: "{{ .Values.microservices.server.image.repository }}:{{ .Values.microservices.server.image.tag | default "latest" }}"
+          imagePullPolicy: {{ .Values.microservices.server.image.pullPolicy | default "Never" }}
+          {{- else }}
+          # Production mode: use registry images
           image: "{{ .Values.microservices.server.image.repository }}:{{ .Values.microservices.server.image.tag }}"
           imagePullPolicy: {{ .Values.microservices.server.image.pullPolicy }}
+          {{- end }}
           ports:
             - name: http
               containerPort: {{ .Values.microservices.server.ports.http }}

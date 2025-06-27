@@ -50,8 +50,15 @@ spec:
             allowPrivilegeEscalation: false
             runAsNonRoot: true
             runAsUser: 1000
+          {{- if .Values.development.mode }}
+          # Development mode: use local built images
+          image: "{{ .Values.microservices.recorder.image.repository }}:{{ .Values.microservices.recorder.image.tag | default "latest" }}"
+          imagePullPolicy: {{ .Values.microservices.recorder.image.pullPolicy | default "Never" }}
+          {{- else }}
+          # Production mode: use registry images
           image: "{{ .Values.microservices.recorder.image.repository }}:{{ .Values.microservices.recorder.image.tag }}"
           imagePullPolicy: {{ .Values.microservices.recorder.image.pullPolicy }}
+          {{- end }}
           ports:
             - name: http
               containerPort: {{ .Values.microservices.recorder.ports.http }}

@@ -428,17 +428,41 @@ monitoring:
   prometheusRule:
     enabled: false  # Requires Prometheus Operator
 
-# Development configuration for local file mounting
+# Development configuration
 development:
+  # Enable development mode for local builds and hot reloading
+  mode: false  # Set to true in dev-values-skaffold.yaml for Skaffold development
+  
+  # Local configuration file mounting (alternative to mode: true)
   localConfigs:
-    enabled: false  # Set to true to enable local config file mounting
+    enabled: false  # Set to true to enable local config file mounting (e.g., dev-values.yaml)
+    basePath: ""  # Local path to the project root
+    
+    # Config file paths relative to basePath
+    alloy:
+      configPath: "alloy/config.alloy"
+      endpointsPath: "alloy/endpoints.json"
+    tempo:
+      configPath: "tempo/tempo.yaml"
+    loki:
+      configPath: "loki/loki.yaml"
+    mimir:
+      configPath: "mimir/mimir.yaml"
+    beyla:
+      configPath: "beyla/config.yaml"
+    grafana:
+      provisioningPath: "grafana/provisioning"
+      dashboardsPath: "grafana/definitions"
 
-# Configuration overrides
+  # Development image settings (used when mode: true)
+  images:
+    useLocal: false  # Use local images built by Skaffold
+    pullPolicy: Never  # Never pull from registry in dev mode
+    tag: latest  # Use latest tag for dev images
+
+# Configuration overrides (advanced users)
 configOverrides:
   alloy: ""
-  
   tempo: ""
-  
   loki: ""
-  
   mimir: ""

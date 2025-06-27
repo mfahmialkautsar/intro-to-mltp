@@ -1,0 +1,45 @@
+schemaVersion: 2.0.0
+
+# Container structure tests for Mythical Beasts microservices
+# These tests validate that our Docker images are built correctly
+
+commandTests:
+  - name: "node is installed"
+    command: "node"
+    args: ["--version"]
+    expectedOutput: ["v23.*"]
+    
+  - name: "npm is available"
+    command: "npm"
+    args: ["--version"]
+    expectedOutput: [".*"]
+    
+  - name: "application files exist"
+    command: "ls"
+    args: ["/usr/src/app"]
+    expectedOutput: ["index.js"]
+
+fileExistenceTests:
+  - name: "Node.js application"
+    path: "/usr/src/app/index.js"
+    shouldExist: true
+    
+  - name: "Node modules"
+    path: "/usr/src/app/node_modules"
+    shouldExist: true
+    
+  - name: "Package.json"
+    path: "/usr/src/app/package.json"
+    shouldExist: true
+
+fileContentTests:
+  - name: "Package.json contains required fields"
+    path: "/usr/src/app/package.json"
+    expectedContents: ["name", "version", "main"]
+
+metadataTest:
+  workdir: "/usr/src/app"
+  exposedPorts: ["4000", "4001", "4002"]
+  
+  # Ensure we're not running as root
+  user: "node"
