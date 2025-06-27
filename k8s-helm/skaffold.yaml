@@ -1,0 +1,131 @@
+apiVersion: skaffold/v4beta11
+kind: Config
+metadata:
+  name: grafana-mltp-stack-dev
+
+# Fast development mode with hot reload
+build:
+  artifacts:
+    - image: mythical-beasts-server
+      context: ../source
+      docker:
+        dockerfile: docker/Dockerfile
+        buildArgs:
+          SERVICE: mythical-beasts-server
+      sync:
+        manual:
+          - src: "mythical-beasts-server/**/*.js"
+            dest: /usr/src/app/
+            strip: "mythical-beasts-server/"
+          - src: "common/**/*.js"
+            dest: /usr/src/app/
+            strip: "common/"
+    - image: mythical-beasts-requester
+      context: ../source
+      docker:
+        dockerfile: docker/Dockerfile
+        buildArgs:
+          SERVICE: mythical-beasts-requester
+      sync:
+        manual:
+          - src: "mythical-beasts-requester/**/*.js"
+            dest: /usr/src/app/
+            strip: "mythical-beasts-requester/"
+          - src: "common/**/*.js"
+            dest: /usr/src/app/
+            strip: "common/"
+    - image: mythical-beasts-recorder
+      context: ../source
+      docker:
+        dockerfile: docker/Dockerfile
+        buildArgs:
+          SERVICE: mythical-beasts-recorder
+      sync:
+        manual:
+          - src: "mythical-beasts-recorder/**/*.js"
+            dest: /usr/src/app/
+            strip: "mythical-beasts-recorder/"
+          - src: "common/**/*.js"
+            dest: /usr/src/app/
+            strip: "common/"
+  local:
+    # Use Docker for faster builds
+    useDockerCLI: true
+    # Clean up artifacts between builds
+    useBuildkit: true
+
+deploy:
+  helm:
+    releases:
+      - name: grafana-mltp-stack
+        chartPath: grafana-mltp-stack
+        valuesFiles:
+          - grafana-mltp-stack/values.yaml
+          - dev-values-skaffold.yaml
+        setValueTemplates:
+          # Override image repositories for dev mode - use local images
+          microservices.server.image.repository: mythical-beasts-server
+          microservices.server.image.tag: latest
+          microservices.server.image.pullPolicy: Never
+          microservices.requester.image.repository: mythical-beasts-requester
+          microservices.requester.image.tag: latest
+          microservices.requester.image.pullPolicy: Never
+          microservices.recorder.image.repository: mythical-beasts-recorder
+          microservices.recorder.image.tag: latest
+          microservices.recorder.image.pullPolicy: Never
+          # Enable development mode
+          development.mode: true
+        namespace: mltp-dev
+        wait: true
+        recreatePods: false
+        upgradeOnChange: true
+
+# Port forwarding for development
+portForward:
+  - resourceType: service
+    resourceName: grafana-mltp-stack-grafana
+    namespace: mltp-dev
+    port: 3000
+    localPort: 3000
+  - resourceType: service
+    resourceName: grafana-mltp-stack-mythical-server
+    namespace: mltp-dev
+    port: 4000
+    localPort: 4000
+  - resourceType: service
+    resourceName: grafana-mltp-stack-mythical-requester
+    namespace: mltp-dev
+    port: 4001
+    localPort: 4001
+  - resourceType: service
+    resourceName: grafana-mltp-stack-mythical-recorder
+    namespace: mltp-dev
+    port: 4002
+    localPort: 4002
+  - resourceType: service
+    resourceName: grafana-mltp-stack-loki
+    namespace: mltp-dev
+    port: 3100
+    localPort: 3100
+  - resourceType: service
+    resourceName: grafana-mltp-stack-mimir
+    namespace: mltp-dev
+    port: 9009
+    localPort: 9009
+  - resourceType: service
+    resourceName: grafana-mltp-stack-tempo
+    namespace: mltp-dev
+    port: 3200
+    localPort: 3200
+
+# Testing configuration for CI/CD
+test:
+  - image: mythical-beasts-server
+    structureTests:
+      - ./test/structure-test.yaml
+  - image: mythical-beasts-requester
+    structureTests:
+      - ./test/structure-test.yaml
+  - image: mythical-beasts-recorder
+    structureTests:
+      - ./test/structure-test.yaml
