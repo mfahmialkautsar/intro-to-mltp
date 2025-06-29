@@ -103,13 +103,13 @@ observability:
       enabled: false  # Use emptyDir for faster setup
   loki:
     persistence:
-      size: "2Gi"
+      size: "1Gi"
   mimir:
     persistence:
-      size: "2Gi"
+      size: "1Gi"
   tempo:
     persistence:
-      size: "2Gi"
+      size: "1Gi"
 
 infrastructure:
   postgresql:

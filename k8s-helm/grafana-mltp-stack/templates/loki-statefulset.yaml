@@ -98,5 +98,5 @@ spec:
         {{- end }}
         resources:
           requests:
-            storage: {{ .Values.observability.loki.persistence.size | default "10Gi" }}
+            storage: {{ .Values.observability.loki.persistence.size | default "1Gi" }}
 {{- end }}
